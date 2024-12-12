@@ -24,7 +24,7 @@ The following lines are the data seperate by ","
 
 
 ## User interaction
-The program must load the file and then ask the user what the values they would like to look up. 
+The program must load the file and then ask the user what the values they would like to look up.  Guess are in excel format with col represented by letters and rows by numbers. _A1_ is the first col and row. *C10* is the 3rd col and 10th row. For columns once 26 columns are surpassed the numbering becomes _AA_, _AB_, _AC_ ... 
 
 ### Example 
 
