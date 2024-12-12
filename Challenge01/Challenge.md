@@ -1,4 +1,4 @@
-#Challenge 1
+# First Challenge
 
 ## Basics
 Inital code project is to load an array of integers from a file. The integers are arranged in a rows and columns. 
