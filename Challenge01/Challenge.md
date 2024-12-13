@@ -18,7 +18,7 @@ Inital challenge project is to load an array of integers from a file and be able
 </pre>
 
 ## User interaction
-The program loads the file and if not given the command line option of --guess will become interactive. The program will ask the user what the values they would like to look up.  Guesses are in excel *Col**Row* format with *col* represented by letters and *rows* by numbers. _A1_ is the first col and row. *C10* is the 3rd col and 10th row. Above 26 columns the *col* numbering becomes _AA_, _AB_, _AC_ ... 
+The program loads the file and if not given the command line option of --guess will become interactive. The program will ask the user what the values they would like to look up.  Guesses are in excel *ColRow* format with *col* represented by letters and *rows* by numbers. _A1_ is the first col and row. *C10* is the 3rd col and 10th row. Above 26 columns the *col* numbering becomes _AA_, _AB_, _AC_ ... 
 
 ### Expected Output 
 <pre>
@@ -39,7 +39,7 @@ The program loads the file and if not given the command line option of --guess w
  > challenge --load _filename_  --guess _A1_ _B2_ _C4_ 
  > Expected output: 0, 3, OOB   
  > OOB = Out of bounds
- If --guess is not included run the interacive mode
+ > If *--guess* is not included run the interacive mode
 
  ## Error Conditions
  The files can be malformed. If the program encourters an error in file parsing or in user input the program should ouput ERROR: "Whatever error you want to write". For instance if the file has a row amount of 9999999 the program should output _ERROR: row too large_. Or if the file has a column missing in a row the program should output: _ERROR: missing column on line ..._  
@@ -49,7 +49,8 @@ The program loads the file and if not given the command line option of --guess w
  + Read input from a file
  + Interactive vs non interactive mode
  + Deal with errors from the user or in the file without crashing
- + Learning about tests (the tests are part of the challenge) The challenge will include a program to test your program. 
+ + Learning about tests (the tests are part of the challenge) The challenge will include a program to test your program.
+ + Dynamic memory allocation 
     
  
 
