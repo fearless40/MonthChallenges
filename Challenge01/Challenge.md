@@ -10,14 +10,12 @@ Inital challenge project is to load an array of integers from a file and be able
 3. Line 3-...: signed 16bit integers (-32768 to 32767) seperated by "," for as many rows and columns as specified above
 
 ### Example file
-> 2
-> 
-> 2
-> 
-> 0,1
-> 
-> 2,3
-> 
+<pre>
+ 2
+ 2
+ 0,1
+ 2,3
+</pre>
 
 ## User interaction
 The program loads the file and if not given the command line option of --guess will become interactive. The program will ask the user what the values they would like to look up.  Guesses are in excel *Col**Row* format with *col* represented by letters and *rows* by numbers. _A1_ is the first col and row. *C10* is the 3rd col and 10th row. Above 26 columns the *col* numbering becomes _AA_, _AB_, _AC_ ... 
