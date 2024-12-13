@@ -1,5 +1,4 @@
 # First Challenge
----
 
 ## Basic Description
 Inital challenge project is to load an array of integers from a file and be able to answer basic questions about the data. The data can be malformed and the program should exit gracefully rather than crashing 
