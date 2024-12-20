@@ -1,7 +1,7 @@
 # First Challenge
 
 ## Basic Description
-Inital challenge project is to load an array of integers from a file and be able to answer basic questions about the data. The data can be malformed and the program should exit gracefully rather than crashing 
+Inital challenge project is to load an array of integers from a file and be able to answer basic questions about the data. The data can be malformed and the program should exit gracefully rather than crashing. Make sure that you include a readme.md file that indicates how the progam can be built.  
 
 ### Description of file format
 1. Line 1: number or rows unsigned 16bit integer (0-65535)
@@ -18,6 +18,7 @@ Inital challenge project is to load an array of integers from a file and be able
 
 ## User interaction
 The program loads the file and if not given the command line option of --guess will become interactive. The program will ask the user what the values they would like to look up.  Guesses are in excel *ColRow* format with *col* represented by letters and *rows* by numbers. _A1_ is the first col and row. *C10* is the 3rd col and 10th row. Above 26 columns the *col* numbering becomes _AA_, _AB_, _AC_ ... 
+An alternative format is col,row with each represented by numbers. 1,1 is equivalent to B1.
 
 ### Expected Output 
 <pre>
