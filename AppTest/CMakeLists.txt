@@ -12,7 +12,7 @@ project(AppTest VERSION 1.0
         DESCRIPTION "Program to generate tests for the challenges, and run the tests."
         LANGUAGES CXX)
 
-set_property(GLOBAL PROPERTY CMAKE_CXX_STANDARD  23)
+set_property(GLOBAL PROPERTY CMAKE_CXX_STANDARD  20)
 set_property(GLOBAL PROPERTY CMAKE_CXX_STANDARD_REQUIRED On)
 set_property(GLOBAL PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
@@ -20,12 +20,12 @@ set_property(GLOBAL PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
 if (MSVC_VERSION GREATER_EQUAL "1900")
     include(CheckCXXCompilerFlag)
-    CHECK_CXX_COMPILER_FLAG("/std:c++23" _cpp_20_flag_supported)
+    CHECK_CXX_COMPILER_FLAG("/std:c++20" _cpp_20_flag_supported)
     if (_cpp_20_flag_supported)
-        add_compile_options("/std:c++23")
+        add_compile_options("/std:c++20")
     endif()
 endif()
 
 add_subdirectory(external)
-add_subdirectory(source_group())
+add_subdirectory(source)
 
