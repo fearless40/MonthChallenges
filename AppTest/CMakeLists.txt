@@ -24,6 +24,7 @@ if (MSVC_VERSION GREATER_EQUAL "1900")
     if (_cpp_20_flag_supported)
         add_compile_options("/std:c++20")
     endif()
+    add_compile_options("/MP")
 endif()
 
 add_subdirectory(external)

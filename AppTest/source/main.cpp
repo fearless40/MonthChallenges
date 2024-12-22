@@ -9,6 +9,7 @@
 int main(int argc, char *argv)
 {
     using namespace ftxui;
+    
 
     auto screen = ScreenInteractive::FullscreenPrimaryScreen();
 
