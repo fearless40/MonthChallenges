@@ -1,10 +1,12 @@
 #pragma once
 #include <filesystem>
-#include <optional> 
+#include <optional>
 
-namespace CommandLine {
+namespace CommandLine
+{
 
-enum class RunMode {
+enum class RunMode
+{
     Generate,
     Run,
     Help,
@@ -12,18 +14,22 @@ enum class RunMode {
     Quit
 };
 
-struct Options {
-    RunMode                 mode;
-    std::filesystem::path   testFile;
-    std::filesystem::path   testProgram;
-    bool testNormalOnly {false};
-    bool testAll {true};
-    bool testHuge {false};
+enum class TestModes
+{
+    All,
+    NoErrors,
 };
 
+struct Options
+{
+    RunMode mode{RunMode::Quit};
+    std::filesystem::path testFile{};
+    std::filesystem::path testProgram{};
+    TestModes tests{TestModes::All};
+    bool huge{false};
+    bool overwrite{false};
+};
 
+std::optional<Options> parse(int argc, const char *argv);
 
-
-std::optional<Options> parse( int argc, const char * argv);
-
-}
+} // namespace CommandLine
