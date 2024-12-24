@@ -30,6 +30,6 @@ struct Options
     bool overwrite{false};
 };
 
-std::optional<Options> parse(int argc, const char *argv);
+std::optional<Options> parse(int argc, char *argv[]);
 
 } // namespace CommandLine

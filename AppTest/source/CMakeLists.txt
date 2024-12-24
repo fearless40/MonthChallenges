@@ -1,6 +1,7 @@
 add_executable( apptest 
     main.cpp 
     commandline.cpp
+    generatetest.cpp
 )
 
 target_include_directories( apptest 
@@ -9,8 +10,8 @@ target_include_directories( apptest
 )
 
 target_link_libraries( apptest
-    PUBLIC ftxui::component
-    PUBLIC ftxui::dom
-    PUBLIC ftxui::screen 
+    #PUBLIC ftxui::component
+    #PUBLIC ftxui::dom
+    #PUBLIC ftxui::screen 
     
 )

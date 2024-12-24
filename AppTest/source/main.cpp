@@ -1,4 +1,6 @@
 #include "commandline.hpp"
+#include "generatetest.hpp"
+#include <iostream>
 
 /*
 #include "ftxui/component/captured_mouse.hpp"     // for ftxui
@@ -9,7 +11,7 @@
 #include "ftxui/screen/color.hpp"                 // for Color, Color::Red
 */
 
-int main(int argc, char *argv)
+int main(int argc, char *argv[])
 {
     /*    using namespace ftxui;
 
@@ -47,6 +49,19 @@ int main(int argc, char *argv)
     */
 
     auto options = CommandLine::parse(argc, argv);
+    if (!options)
+        return 0;
+
+    auto opt = options.value();
+
+    switch (options.value().mode)
+    {
+    case CommandLine::RunMode::Generate:
+        return generate_tests_cmd_line(opt.testFile, opt.tests, opt.huge, opt.overwrite);
+
+    default:
+        break;
+    }
 
     return 0;
 }

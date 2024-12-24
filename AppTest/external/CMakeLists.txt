@@ -1,14 +1,17 @@
 include(FetchContent)
 
-FetchContent_Declare(ftxui
-  GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
-  GIT_TAG main
-  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ftxui"
-  GIT_PROGRESS True
-)
 
 
-FetchContent_MakeAvailable(ftxui)
+#FetchContent_Declare(ftxui
+#  GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+#  GIT_TAG main
+#  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ftxui"
+#  GIT_PROGRESS True
+#)
+
+
+#FetchContent_MakeAvailable(ftxui)
+
 
 
 FetchContent_Declare( clipp 
