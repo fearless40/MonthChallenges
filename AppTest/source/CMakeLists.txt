@@ -13,5 +13,6 @@ target_link_libraries( apptest
     #PUBLIC ftxui::component
     #PUBLIC ftxui::dom
     #PUBLIC ftxui::screen 
+    PUBLIC  tomlplusplus
     
 )

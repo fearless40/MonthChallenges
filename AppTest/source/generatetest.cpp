@@ -8,6 +8,7 @@
 #include <ranges>
 #include <sstream>
 #include <string_view>
+#include <variant>
 
 using std::operator""sv;
 
@@ -52,7 +53,7 @@ enum class Errors
     DataValueTooSmall,
 };
 
-class TestDescription;
+
 
 struct RowCol {
     std::uint16_t row;
@@ -67,14 +68,40 @@ struct RowCol {
     std::string colrow() {
         return std::format("{},{}", col,row);
     }
+
+    static RowCol random( std::uint16_t maxRow, std::uint16_t maxCol ) {
+        return { between_rand<std::uint16_t>( 0, maxRow),
+                 between_rand<std::uint16_t>(0, maxCol) 
+                };
+    }
+
+    bool operator == ( const RowCol & other) const = default;
 };
 
-struct ConfigData;
+struct QueryErrorAnswer {
+    bool is_error; 
+};
 
-class TestDescription
+struct QueryCorrectAnswer {
+    RowCol pos;
+    std::int16_t answer;
+};
+
+using QueryAnswer = std::variant<QueryCorrectAnswer, QueryErrorAnswer>;
+using Queries = std::vector<RowCol>;
+using QueryAnswers = std::vector<QueryAnswer>;
+
+class TestDefinition
 {
     public:
-        const std::string_view mName;
+
+       /* constexpr TestDefinition(const std::string_view name, std::uint16_t nbrRows, std::uint16_t nbrCols, RowColData dataGenerateFun, Errors errors, bool injectWhiteSpace ) :
+            mName(name) ,mNbrRows( nbrRows), mNbrCols(nbrCols), mData(dataGenerateFun), mError(errors), mInjectRandomWhiteSpace(injectWhiteSpace) {
+
+            }
+*/
+
+        std::string_view mName;
         const std::uint16_t mNbrRows;
         const std::uint16_t mNbrCols;
         const RowColData mData{RowColData::IncrementFromPos};
@@ -86,7 +113,7 @@ class TestDescription
                     mNbrCols == std::numeric_limits<std::uint16_t>::max();
         }
         
-        void write( std::ostream & file, ConfigData & config  ) const {
+       QueryAnswers generate( std::ostream & file, const std::vector<RowCol> & guesses  ) const {
             
             std::random_device rd;
             std::mt19937 gen(rd());
@@ -111,7 +138,7 @@ class TestDescription
 
             file << make_col_value(mNbrCols, mError) << '\n';
 
-            write_data_value(file);
+            return write_data_value(file, guesses);
         };
     
     private:
@@ -161,10 +188,10 @@ class TestDescription
         }
     }
 
-    void write_data_value(std::ostream &file) const
+    QueryAnswers write_data_value(std::ostream &file, const std::vector<RowCol> & guesses) const
     {
         if (!file)
-            return;
+            return {};
 
         std::random_device rd;
         std::mt19937 gen(rd());
@@ -211,6 +238,9 @@ class TestDescription
         bool skipOneColumn = mError == Errors::DataMissingCol ? true : false;
         std::size_t randCol = col_random();
         std::size_t randRow = row_random();
+
+        QueryAnswers answers; 
+        answers.reserve( guesses.size() );
         
         for (std::size_t row = 0; row < rowToGen; ++row)
         {
@@ -237,62 +267,113 @@ class TestDescription
                     else if( mError == Errors::DataHasText )
                         file << "ab1234df";
                 }
-                else 
+                else {
+                    if( mError == Errors::None) {
+                        RowCol current {static_cast<std::uint16_t>(row), static_cast<std::uint16_t>(col)};
+                        auto it = std::ranges::find( guesses , current ); 
+                        if( it != guesses.end() ) {
+                            QueryCorrectAnswer q{ current, lastValue };
+                            answers.emplace_back( q );
+                        }
+                    }
                     file << lastValue;
+                }
+                    
                     
                 if( mInjectRandomWhiteSpace && bool_random())
                     injectWhiteSpace(row_random());
             }
             file << '\n';
         }
+
+        if( mError != Errors::None) {
+            return {};
+        }
+        return answers;
     }
+    
 
 };
 
-struct ConfigTest {
-    const TestDescription & test; 
-    std::vector<RowCol> queries; 
-    std::vector<std::string> expected; 
-    std::vector<std::string> rejected;
-};
 
-struct ConfigData
+class TestsConfiguration
 {
-    std::vector<ConfigTest> mTests; 
+    private:
+    struct TestResults {
+        const TestDefinition & test; 
+        Queries              queries; 
+        QueryAnswers         expected; 
+        std::vector<std::string> rejected;
+    };
 
-    void add( const TestDescription & test, std::size_t nbrQueries,  bool outofbounds  ) {
-        ConfigTest t{test};
+    std::vector<TestResults> mTests; 
+
+    public:
+    void create( const TestDefinition & test, std::size_t nbrQueries,  std::size_t outofbounds  ) {
+        TestResults t{test};
         
         if( test.mError != Errors::None ) {
-            t.expected.emplace_back("error");
+            t.expected.emplace_back(QueryErrorAnswer{true});
             mTests.emplace_back( t );
             return;
         }
 
+        // If there are no errors ensure that a report of error is rejected
         t.rejected.emplace_back("error");
 
+        // Generate queries
         for( int queryCount = 0; queryCount < nbrQueries; ++queryCount ){
             t.queries.emplace_back( between_rand<std::uint16_t>( 0, test.mNbrRows),
                                     between_rand<std::uint16_t>( 0, test.mNbrCols));
         }
 
-        if( outofbounds ) {
-            // Generate 3 out of bound queries
+        // Generate Out of bound queries
+        for( std::size_t oobCount = 0; oobCount < outofbounds; ++oobCount){
             t.queries.emplace_back( between_rand<std::uint16_t>( test.mNbrRows + 1, test.mNbrRows * 30),
                                     between_rand<std::uint16_t>( test.mNbrCols + 1, test.mNbrCols * 30));
         }
 
         mTests.emplace_back( t );
     }
+
+    void write_all_tests( std::filesystem::path locationToWrite, bool locateTestFileInSeperateFolder ) {
+        if( locateTestFileInSeperateFolder ) {
+            // Ignore for now
+        }
+
+        std::ranges::for_each( mTests, [&locationToWrite]( TestResults & tResult) {
+           std::cout << "Generating test: " << tResult.test.mName << '\n';
+           std::ofstream file;
+           std::string fname; 
+           std::ranges::transform(tResult.test.mName, std::back_inserter(fname), [](auto c) {
+            if (c == ' ' || c == '\t')
+                return '_';
+            return c;
+            });    
+
+            file.open( fname );
+            tResult.expected = tResult.test.generate( file, tResult.queries);
+
+
+
+        });
+
+        write_config_file( locationToWrite );
+    }
+
+    private: 
+        void write_config_file( std::filesystem::path locationToWrite ){
+            std::cout << "Writing Config file" << '\n';
+        }
     
 };
 
-constexpr TestDescription mErr(Errors err, const std::string_view name)
+constexpr TestDefinition mErr(Errors err, const std::string_view name)
 {
     return {name, 8, 8, RowColData::IncrementFromPos, err};
 }
 
-const TestDescription tests[] = {
+const TestDefinition tests[] = {
     {"Small Test", 2, 2},
     {"Medium Test", 8, 8},
     {"Large Test", 30, 30},
@@ -317,30 +398,11 @@ const TestDescription tests[] = {
 };
 
 
-
-void make_test(ConfigData &data, const TestDescription &test, std::filesystem::path root)
-{
-            std::cout << "Generating test: " << test.mName << '\n';
-            std::ofstream file;
-
-            std::string fname;
-
-            std::ranges::transform(test.mName, std::back_inserter(fname), [](auto c) {
-                if (c == ' ')
-                    return '_';
-                return c;
-            });
-
-            file.open(fname);
-            test.write(file, data);
-            file.close();
-};
-
 int generate_tests_cmd_line(std::filesystem::path test_output, CommandLine::TestModes mode, bool huge, bool overwrite)
 {
     auto currentPath = std::filesystem::current_path();
     std::cout << "Current Path: " << currentPath << '\n';
-    ConfigData config;
+    TestsConfiguration config;
 
     std::ranges::for_each(
     tests | std::views::filter(
@@ -350,10 +412,13 @@ int generate_tests_cmd_line(std::filesystem::path test_output, CommandLine::Test
                 return true;
          }
     ),
-    [&config, &currentPath](const TestDescription &test)
+    [&config, &currentPath](const TestDefinition &test)
     { 
-        make_test(config, test, currentPath); 
+        config.create( test, 5, 2);
+        //make_test(config, test, currentPath); 
     });
+
+    config.write_all_tests( std::filesystem::current_path(), false );
 
     return 0;
 }
