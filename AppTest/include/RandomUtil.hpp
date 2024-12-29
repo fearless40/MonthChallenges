@@ -7,7 +7,7 @@ namespace Random
 inline static std::random_device randomDevice;
 inline static std::mt19937 randomGen(randomDevice());
 
-bool boolean()
+static bool coin_flip()
 {
     std::uniform_int_distribution<> r(0, 1);
     return r(randomGen) == 0 ? false : true;
