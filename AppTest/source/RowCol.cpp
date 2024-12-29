@@ -1,17 +1,18 @@
 #include "RowCol.hpp"
 #include "RandomUtil.hpp"
 
-std::string RowCol::excel() const;
+std::string RowCol::as_excel_fmt() const
 {
     const std::string_view letters{"abcdefghijklmnopqrstuvwxyz"};
+    return "";
 }
 
-std::string RowCol::colrow() const;
+std::string RowCol::as_colrow_fmt() const
 {
     return std::format("{},{}", col, row);
 }
 
-RowCol RowCol::random(std::uint16_t maxRow, std::uint16_t maxCol);
+RowCol RowCol::random(std::uint16_t maxRow, std::uint16_t maxCol)
 {
-    return {Rand::between<std::uint16_t>(0, maxRow), Rand::between<std::uint16_t>(0, maxCol)};
+    return {Random::between<std::uint16_t>(0, maxRow), Random::between<std::uint16_t>(0, maxCol)};
 }

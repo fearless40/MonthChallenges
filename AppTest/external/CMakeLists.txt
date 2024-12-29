@@ -26,12 +26,14 @@ FetchContent_MakeAvailable( clipp )
 
 FetchContent_Declare(
     tomlplusplus
-    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-    GIT_TAG v3.4.0
+    GIT_REPOSITORY https://github.com/marzer/tomlplusplus
+    GIT_TAG master/v3.4.0
     GIT_PROGRESS True
-    EXCLUDE_FROM_ALL "/examples"
-    EXCLUDE_FROM_ALL "/tests"
-    EXCLUDE_FROM_ALL "/vendor"
+    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tomlplusplus"
+    EXCLUDE_FROM_ALL "examples/"
+    EXCLUDE_FROM_ALL "tests/"
+    EXCLUDE_FROM_ALL "vendor/"
+    BRANCH
 
 )
 FetchContent_MakeAvailable(tomlplusplus)

@@ -2,7 +2,7 @@
 #include "RandomUtil.hpp"
 #include <algorithm>
 #include <iostream>
-#include <ostream>
+#include <fstream>
 #include <ranges>
 
 namespace Tests
@@ -10,7 +10,7 @@ namespace Tests
 
 #define mErr(err, name) {name, 8, 8, RowColDataGeneration::IncrementFromPos, err}
 
-const Definition tests[] = {
+const Definition default_tests[] = {
     {"Small Test", 2, 2},
     {"Medium Test", 8, 8},
     {"Large Test", 30, 30},
@@ -77,17 +77,35 @@ void Configuration::write_all_tests(std::filesystem::path locationToWrite, bool 
     std::ranges::for_each(mTests, [&locationToWrite](ExpectedResults &tResult) {
         std::cout << "Generating test: " << tResult.test.mName << '\n';
         std::ofstream file;
-        std::string fname;
-        std::ranges::transform(tResult.test.mName, std::back_inserter(fname), [](auto c) {
+        tResult.filename.reserve( tResult.test.mName.size() );
+        std::ranges::transform(tResult.test.mName, std::back_inserter(tResult.filename), [](auto c) {
             if (c == ' ' || c == '\t')
                 return '_';
             return c;
         });
 
-        file.open(fname);
+        file.open(tResult.filename);
         tResult.expected = tResult.test.generate(file, tResult.queries);
+        
     });
+}
 
-    write_config_file(locationToWrite);
+Configuration Configuration::generate_default( bool noErrors, bool generateHuge ) {
+   
+    Configuration config;
+
+    for(  auto & test : 
+        default_tests | std::views::filter(
+        [&noErrors](auto &t) {
+            if (noErrors)
+                return t.mError == Errors::None;
+            return true;
+        })
+    ) 
+    {
+        config.create(test, 5, 2);
+    }
+ 
+ return config;
 }
 } // namespace Tests

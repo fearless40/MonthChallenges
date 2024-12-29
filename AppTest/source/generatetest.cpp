@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string_view>
 #include <variant>
+#include "TestConfig.hpp"
 
 using std::operator""sv;
 
@@ -16,18 +17,11 @@ int generate_tests_cmd_line(std::filesystem::path test_output, CommandLine::Test
 {
     auto currentPath = std::filesystem::current_path();
     std::cout << "Current Path: " << currentPath << '\n';
-    TestsConfiguration config;
+    
+    bool noErrors = mode == CommandLine::TestModes::NoErrors;
+    Tests::Configuration config { Tests::Configuration::generate_default( noErrors, huge )};
 
-    std::ranges::for_each(tests | std::views::filter([&mode](auto &t) {
-                              if (mode == CommandLine::TestModes::NoErrors)
-                                  return t.mError == Errors::None;
-                              return true;
-                          }),
-                          [&config, &currentPath](const TestDefinition &test) {
-                              config.create(test, 5, 2);
-                              // make_test(config, test, currentPath);
-                          });
-
+    
     config.write_all_tests(std::filesystem::current_path(), false);
 
     return 0;

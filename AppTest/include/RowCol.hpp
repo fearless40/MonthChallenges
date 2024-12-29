@@ -3,6 +3,7 @@
 #include <format>
 #include <string>
 #include <string_view>
+#include <compare>
 
 struct RowCol
 {
@@ -11,9 +12,9 @@ struct RowCol
 
     auto operator<=>(const RowCol &other) const = default;
 
-    std::string excel() const;
+    std::string as_excel_fmt() const;
 
-    std::string colrow() const;
+    std::string as_colrow_fmt() const;
 
     static RowCol random(std::uint16_t maxRow, std::uint16_t maxCol);
 };

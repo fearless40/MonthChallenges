@@ -2,6 +2,9 @@ add_executable( apptest
     main.cpp 
     commandline.cpp
     generatetest.cpp
+    TestConfig.cpp
+    RowCol.cpp
+    TestDefinition.cpp
 )
 
 target_include_directories( apptest 
