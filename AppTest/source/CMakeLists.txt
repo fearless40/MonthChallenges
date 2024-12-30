@@ -5,6 +5,7 @@ add_executable( apptest
     TestConfig.cpp
     RowCol.cpp
     TestDefinition.cpp
+    TestConfigTOML.cpp
 )
 
 target_include_directories( apptest 

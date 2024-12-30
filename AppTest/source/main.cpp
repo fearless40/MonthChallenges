@@ -57,6 +57,7 @@ int main(int argc, char *argv[])
     switch (options.value().mode)
     {
     case CommandLine::RunMode::Generate:
+        std::cout << opt.testFile << '\n';
         return generate_tests_cmd_line(opt.testFile, opt.tests, opt.huge, opt.overwrite);
 
     default:

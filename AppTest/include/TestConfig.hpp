@@ -26,8 +26,18 @@ class Configuration
 
     void write_all_tests(std::filesystem::path locationToWrite, bool locateTestFileInSeperateFolder);
 
-  public: 
-    static Configuration generate_default( bool includeErrors, bool generateHuge );
+    auto begin() const
+    {
+        return mTests.cbegin();
+    }
+
+    auto end() const
+    {
+        return mTests.cend();
+    }
+
+  public:
+    static Configuration generate_default(bool includeErrors, bool generateHuge);
 
   private:
     void write_config_file(std::filesystem::path locationToWrite);

@@ -164,7 +164,7 @@ QueryAnswers Definition::write_data_value(std::ostream &file, const std::vector<
                     auto it = std::ranges::find(guesses, current);
                     if (it != guesses.end())
                     {
-                        QueryCorrectAnswer q{current, lastValue};
+                        QueryAnswer q{false, current, lastValue};
                         answers.emplace_back(q);
                     }
                 }

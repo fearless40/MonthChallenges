@@ -1,8 +1,8 @@
 #include "TestConfig.hpp"
 #include "RandomUtil.hpp"
 #include <algorithm>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <ranges>
 
 namespace Tests
@@ -42,7 +42,7 @@ void Configuration::create(const Definition &test, std::size_t nbrQueries, std::
 
     if (test.mError != Errors::None)
     {
-        t.expected.emplace_back(QueryErrorAnswer{true});
+        t.expected.emplace_back(QueryAnswer{true, {}, {}});
         mTests.emplace_back(t);
         return;
     }
@@ -53,15 +53,18 @@ void Configuration::create(const Definition &test, std::size_t nbrQueries, std::
     // Generate queries
     for (int queryCount = 0; queryCount < nbrQueries; ++queryCount)
     {
-        t.queries.emplace_back(Random::between<std::uint16_t>(0, test.mNbrRows),
-                               Random::between<std::uint16_t>(0, test.mNbrCols));
+        t.queries.emplace_back(Random::between<std::uint16_t>(0, test.mNbrRows - 1),
+                               Random::between<std::uint16_t>(0, test.mNbrCols - 1));
     }
 
     // Generate Out of bound queries
     for (std::size_t oobCount = 0; oobCount < outofbounds; ++oobCount)
     {
-        t.queries.emplace_back(Random::between<std::uint16_t>(test.mNbrRows + 1, test.mNbrRows * 30),
-                               Random::between<std::uint16_t>(test.mNbrCols + 1, test.mNbrCols * 30));
+        RowCol oob{Random::between<std::uint16_t>(test.mNbrRows + 1, test.mNbrRows * 30),
+                   Random::between<std::uint16_t>(test.mNbrCols + 1, test.mNbrCols * 30)};
+
+        t.queries.push_back(oob);
+        t.expected.push_back({true, oob, 0});
     }
 
     mTests.emplace_back(t);
@@ -77,7 +80,7 @@ void Configuration::write_all_tests(std::filesystem::path locationToWrite, bool 
     std::ranges::for_each(mTests, [&locationToWrite](ExpectedResults &tResult) {
         std::cout << "Generating test: " << tResult.test.mName << '\n';
         std::ofstream file;
-        tResult.filename.reserve( tResult.test.mName.size() );
+        tResult.filename.reserve(tResult.test.mName.size());
         std::ranges::transform(tResult.test.mName, std::back_inserter(tResult.filename), [](auto c) {
             if (c == ' ' || c == '\t')
                 return '_';
@@ -86,26 +89,23 @@ void Configuration::write_all_tests(std::filesystem::path locationToWrite, bool 
 
         file.open(tResult.filename);
         tResult.expected = tResult.test.generate(file, tResult.queries);
-        
     });
 }
 
-Configuration Configuration::generate_default( bool noErrors, bool generateHuge ) {
-   
+Configuration Configuration::generate_default(bool noErrors, bool generateHuge)
+{
+
     Configuration config;
 
-    for(  auto & test : 
-        default_tests | std::views::filter(
-        [&noErrors](auto &t) {
-            if (noErrors)
-                return t.mError == Errors::None;
-            return true;
-        })
-    ) 
+    for (auto &test : default_tests | std::views::filter([&noErrors](auto &t) {
+                          if (noErrors)
+                              return t.mError == Errors::None;
+                          return true;
+                      }))
     {
         config.create(test, 5, 2);
     }
- 
- return config;
+
+    return config;
 }
 } // namespace Tests

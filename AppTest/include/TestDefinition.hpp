@@ -34,18 +34,13 @@ enum class Errors
     DataValueTooSmall,
 };
 
-struct QueryErrorAnswer
+struct QueryAnswer
 {
-    bool is_error;
-};
-
-struct QueryCorrectAnswer
-{
+    bool is_oob;
     RowCol pos;
     std::int16_t answer;
 };
 
-using QueryAnswer = std::variant<QueryCorrectAnswer, QueryErrorAnswer>;
 using Queries = std::vector<RowCol>;
 using QueryAnswers = std::vector<QueryAnswer>;
 

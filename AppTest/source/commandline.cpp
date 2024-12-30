@@ -101,8 +101,9 @@ std::optional<Options> parse(int argc, char *argv[])
                 return {};
             }
 
-            opt.overwrite = true;
+                        opt.overwrite = true;
         }
+        opt.testFile = testFile;
         break;
 
     case RunMode::Help:
