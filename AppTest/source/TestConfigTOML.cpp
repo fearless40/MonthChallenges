@@ -1,8 +1,11 @@
 #include "TestConfigTOML.hpp"
 #include "toml++/toml.hpp"
+#include <iostream>
 
 namespace Tests
 {
+
+const std::string_view Config_File_Version = "version";
 
 void insert_test(toml::array &root, const Configuration::ExpectedResults &result)
 {
@@ -58,7 +61,7 @@ bool config_to_toml_file(const Configuration &config, std::filesystem::path file
 {
     toml::table root;
     toml::array tests;
-    root.insert("version", "1.0");
+    root.insert("version", Config_File_Version);
 
     for (const auto &test : config)
     {
@@ -72,5 +75,100 @@ bool config_to_toml_file(const Configuration &config, std::filesystem::path file
     file << root;
     file.close();
     return true;
+}
+
+Configuration parse_tests(toml::array const *arr)
+{
+    Configuration config;
+    for (auto it = arr->begin(); it != arr->end(); ++it)
+    {
+
+        if (!it->is_table())
+        {
+            return {};
+        }
+
+        auto const &table = it->as_table();
+        std::string filename;
+        std::string testname;
+        std::uint16_t rowCount{0};
+        std::uint16_t colCount{0};
+        Errors errorCode{Errors::None};
+        bool hasError{false};
+        bool huge{false};
+        bool hasRandomWhiteSpace{false};
+
+        table->visit([&](const toml::key &key, auto &&node) {
+            if (key == "filename")
+            {
+                filename = node.as_string();
+            }
+            else if (key == "testname")
+            {
+                testname = node.as_string();
+            }
+            else if (key == "rowCount")
+            {
+                rowCount = static_cast<std::uint16_t>(node.as_integer());
+            }
+            else if (key == "colCount")
+            {
+                colCount = static_cast<std::uint16_t>(node.as_integer());
+            }
+            else if (key == "errorCode")
+            {
+                errorCode = static_cast<Errors>(node.as_integer());
+            }
+            else if (key == "hasError")
+            {
+                hasError = node.as_boolean();
+            }
+            else if (key == "isHuge")
+            {
+                huge = node.as_boolean();
+            }
+            else if (key == "hasRandomWhiteSpace")
+            {
+                hasRandomWhiteSpace = node.as_boolean();
+            }
+            else if (key == "queries")
+            {
+                // Load queries
+            }
+        })
+
+            auto node = table["filename"];
+    }
+}
+
+Configuration toml_file_to_config(std::filesystem::path filename)
+{
+
+    toml::parse_result result;
+    try
+    {
+        result = toml::parse_file(filename.c_str());
+    }
+    catch (toml::parse_error err)
+    {
+        std::cout << "Parse error of config file: " << err.description() << '\n';
+        return Configuration{};
+    }
+
+    if (result["version"] != Config_File_Version)
+    {
+        std::cout << "Invalid file configuration version." << '\n';
+        return Configuration{};
+    }
+
+    auto allTests = result["tests"];
+
+    if (allTests.is_array_of_tables())
+    {
+        return parse_tests(allTests.as_array());
+    }
+
+    return {};
+}
 }
 } // namespace Tests
