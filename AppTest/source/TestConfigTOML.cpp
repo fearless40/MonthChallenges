@@ -1,6 +1,5 @@
 #include "TestConfigTOML.hpp"
 #include "toml++/toml.hpp"
-#include <iostream>
 
 namespace Tests
 {
@@ -40,12 +39,8 @@ void insert_test(toml::array &root, const Configuration::ExpectedResults &result
     {
         toml::table tb;
 
-        std::cout << "Query:" << exp.pos.as_colrow_fmt() << '\n';
         if (exp.is_oob)
-        {
             tb.insert("answer", "OOB");
-            std::cout << "OOB found:" << exp.pos.as_colrow_fmt() << '\n';
-        }
         else
             tb.insert("answer", exp.answer);
 
@@ -76,6 +71,6 @@ bool config_to_toml_file(const Configuration &config, std::filesystem::path file
     file.open(filename);
     file << root;
     file.close();
-    return false;
+    return true;
 }
 } // namespace Tests

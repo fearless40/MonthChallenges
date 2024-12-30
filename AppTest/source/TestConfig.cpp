@@ -64,7 +64,7 @@ void Configuration::create(const Definition &test, std::size_t nbrQueries, std::
                    Random::between<std::uint16_t>(test.mNbrCols + 1, test.mNbrCols * 30)};
 
         t.queries.push_back(oob);
-        t.expected.push_back({true, oob, 0});
+        t.expected.emplace_back(true, oob, 0);
     }
 
     mTests.emplace_back(t);
@@ -88,7 +88,9 @@ void Configuration::write_all_tests(std::filesystem::path locationToWrite, bool 
         });
 
         file.open(tResult.filename);
-        tResult.expected = tResult.test.generate(file, tResult.queries);
+        auto answers = tResult.test.generate(file, tResult.queries);
+        std::copy(tResult.expected.begin(), tResult.expected.end(), std::back_inserter(answers));
+        tResult.expected = answers;
     });
 }
 
