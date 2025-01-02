@@ -77,6 +77,14 @@ bool config_to_toml_file(const Configuration &config, std::filesystem::path file
     return true;
 }
 
+Queries parse_queries(toml::array const *queries)
+{
+    Queries q;
+    for (auto it = arr->queries(); it != queries->end(); ++it)
+    {
+        }
+}
+
 Configuration parse_tests(toml::array const *arr)
 {
     Configuration config;
