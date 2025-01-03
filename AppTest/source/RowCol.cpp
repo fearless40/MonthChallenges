@@ -49,7 +49,7 @@ RowCol parse_comma_fmt(const std::string_view value)
     return {};
 }
 
-static RowCol from_string(std::string_view const value)
+RowCol RowCol::from_string(std::string_view const value)
 {
     // Check for comma format
     {

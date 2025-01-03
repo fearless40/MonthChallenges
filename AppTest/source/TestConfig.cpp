@@ -36,7 +36,7 @@ const Definition default_tests[] = {
 
 #undef mErr
 
-void Configuration::create(const Definition &test, std::size_t nbrQueries, std::size_t outofbounds)
+void Configuration::create_new_test(const Definition &test, std::size_t nbrQueries, std::size_t outofbounds)
 {
     ExpectedResults t{test};
 
@@ -68,6 +68,15 @@ void Configuration::create(const Definition &test, std::size_t nbrQueries, std::
     }
 
     mTests.emplace_back(t);
+}
+
+void Configuration::add_existing( const Definition & test, std::string && filename, Queries && q, QueryAnswers && qa, std::vector<std::string> && rej) {
+    mTests.push_back( {test, filename, 
+        q,
+        qa,
+        rej 
+    }
+    );
 }
 
 void Configuration::write_all_tests(std::filesystem::path locationToWrite, bool locateTestFileInSeperateFolder)
@@ -105,7 +114,7 @@ Configuration Configuration::generate_default(bool noErrors, bool generateHuge)
                           return true;
                       }))
     {
-        config.create(test, 5, 2);
+        config.create_new_test(test, 5, 2);
     }
 
     return config;

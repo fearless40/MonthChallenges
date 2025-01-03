@@ -47,12 +47,12 @@ using QueryAnswers = std::vector<QueryAnswer>;
 class Definition
 {
   public:
-    const std::string mName;
-    const std::uint16_t mNbrRows;
-    const std::uint16_t mNbrCols;
-    const RowColDataGeneration mData{RowColDataGeneration::IncrementFromPos};
-    const Errors mError{Errors::None};
-    const bool mInjectRandomWhiteSpace{false};
+    std::string mName;
+    std::uint16_t mNbrRows;
+    std::uint16_t mNbrCols;
+    RowColDataGeneration mData{RowColDataGeneration::IncrementFromPos};
+    Errors mError{Errors::None};
+    bool mInjectRandomWhiteSpace{false};
 
     bool huge() const
     {

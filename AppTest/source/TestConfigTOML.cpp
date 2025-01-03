@@ -5,7 +5,7 @@
 namespace Tests
 {
 
-const std::string_view Config_File_Version = "version";
+const std::string_view Config_File_Version = "1.0";
 
 void insert_test(toml::array &root, const Configuration::ExpectedResults &result)
 {
@@ -77,12 +77,54 @@ bool config_to_toml_file(const Configuration &config, std::filesystem::path file
     return true;
 }
 
-Queries parse_queries(toml::array const *queries)
+Queries parse_queries(toml::array const & queries)
 {
     Queries q;
-    for (auto it = arr->queries(); it != queries->end(); ++it)
-    {
+    queries.for_each( [&](auto && value) {
+        if constexpr  (toml::is_string<decltype(value)>)
+        {
+            RowCol rc = RowCol::from_string( *value );
+            q.push_back( rc );
         }
+        
+    });
+    return q;
+}
+
+std::vector<std::string> parse_rejected( toml::array const & arr) {
+    std::vector<std::string> data;
+    
+    arr.for_each( [&]( auto && value) {
+        if constexpr (toml::is_string<decltype(value)>)
+            data.push_back( *value );
+    });
+    return data;
+}
+
+QueryAnswers parse_query_answers( toml::array const & arr ){
+    QueryAnswers qa; 
+    for( auto const & it : arr) {
+        if( it.is_table() ){
+            QueryAnswer q{};
+            auto const & tb = *it.as_table();
+            auto answer_node = tb["answer"];
+            if (answer_node.is_string()) {
+                q.answer = 0;
+                q.is_oob = true;
+            } else if (answer_node.is_integer()) {
+                q.answer = answer_node.value_or<std::int16_t>(0);
+                q.is_oob = false;
+            }
+
+            auto queryNode = tb["query"];
+            if( queryNode ){
+                q.pos = RowCol::from_string( queryNode.value_or<std::string_view>("0,0"));
+            }
+
+            qa.push_back(q);
+        }
+    }
+    return qa;
 }
 
 Configuration parse_tests(toml::array const *arr)
@@ -96,57 +138,51 @@ Configuration parse_tests(toml::array const *arr)
             return {};
         }
 
-        auto const &table = it->as_table();
-        std::string filename;
-        std::string testname;
-        std::uint16_t rowCount{0};
-        std::uint16_t colCount{0};
-        Errors errorCode{Errors::None};
-        bool hasError{false};
-        bool huge{false};
-        bool hasRandomWhiteSpace{false};
+        toml::table const &table = *(it->as_table());
+        Definition t{ };
 
-        table->visit([&](const toml::key &key, auto &&node) {
-            if (key == "filename")
-            {
-                filename = node.as_string();
-            }
-            else if (key == "testname")
-            {
-                testname = node.as_string();
-            }
-            else if (key == "rowCount")
-            {
-                rowCount = static_cast<std::uint16_t>(node.as_integer());
-            }
-            else if (key == "colCount")
-            {
-                colCount = static_cast<std::uint16_t>(node.as_integer());
-            }
-            else if (key == "errorCode")
-            {
-                errorCode = static_cast<Errors>(node.as_integer());
-            }
-            else if (key == "hasError")
-            {
-                hasError = node.as_boolean();
-            }
-            else if (key == "isHuge")
-            {
-                huge = node.as_boolean();
-            }
-            else if (key == "hasRandomWhiteSpace")
-            {
-                hasRandomWhiteSpace = node.as_boolean();
-            }
-            else if (key == "queries")
-            {
-                // Load queries
-            }
-        })
+        std::string filename; 
 
-            auto node = table["filename"];
+        filename    = table["filename"].value_or<std::string>(""); 
+        t.mName     = table["testName"].value_or<std::string>("");
+        t.mNbrRows  = table["rowCount"].value_or<std::uint16_t>(0);
+        t.mNbrCols  = table["colCount"].value_or<std::uint16_t>(0);
+        t.mError   = table["errorCode"].value_or<Errors>(Errors::None);
+        t.mInjectRandomWhiteSpace = table["hasRandomWhiteSpace"].value_or<bool>(false);
+        std::vector<std::string> rejected; 
+        QueryAnswers answers;
+        Queries queries;
+
+
+        {
+            // Parse query
+            auto temp = table["queries"].as_array();
+            if(temp) {
+                queries = parse_queries( *temp );
+            }
+        }
+
+        {
+            // Parse rejected
+            auto temp = table["rejected"].as_array();
+            if( temp ){
+                rejected = parse_rejected( *temp );
+            }
+        }
+
+        {
+            auto temp = table["expected"].as_array();
+            if( temp ) {
+                answers = parse_query_answers( *temp );
+            }
+        }
+
+     
+        config.add_existing( t, std::move(filename), std::move(queries), std::move(answers), std::move(rejected));
+        
     }
+
+    return config;
 }
 
 Configuration toml_file_to_config(std::filesystem::path filename)
@@ -178,5 +214,5 @@ Configuration toml_file_to_config(std::filesystem::path filename)
 
     return {};
 }
-}
+
 } // namespace Tests

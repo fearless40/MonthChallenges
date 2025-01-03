@@ -22,7 +22,19 @@ class Configuration
     std::vector<ExpectedResults> mTests;
 
   public:
-    void create(const Definition &test, std::size_t nbrQueries, std::size_t outofbounds);
+    
+    /***
+     * @details Creates a new test from scratch, indicating that data will be synthesized
+     * @param test Create the test based on a definition
+     * @param nbrQueries specify the number of queries that are required
+     * @param outofbounds specify the number of guarenteed out of bound queries are synthesize
+     */
+    void create_new_test(const Definition &test, std::size_t nbrQueries, std::size_t outofbounds);
+
+    /***
+     * @details Defines an existing test create 
+     */
+    void add_existing( const Definition & test,std::string && filename, Queries &&, QueryAnswers &&, std::vector<std::string> &&);
 
     void write_all_tests(std::filesystem::path locationToWrite, bool locateTestFileInSeperateFolder);
 

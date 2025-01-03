@@ -1,5 +1,6 @@
 #include "commandline.hpp"
 #include "generatetest.hpp"
+#include "runtests.hpp"
 #include <iostream>
 
 /*
@@ -59,6 +60,11 @@ int main(int argc, char *argv[])
     case CommandLine::RunMode::Generate:
         std::cout << opt.testFile << '\n';
         return generate_tests_cmd_line(opt.testFile, opt.tests, opt.huge, opt.overwrite);
+
+    case CommandLine::RunMode::Run:
+        std::cout << "Testing reading and then writing config file out..." << '\n';
+        return main_run_tests( opt.testFile, opt.testProgram ); 
+
 
     default:
         break;
