@@ -49,6 +49,22 @@ int main(int argc, char *argv[])
         }));
     */
 
+    std::cout << "0 in base 26 " << RowCol{0, 0}.as_excel_fmt() << '\n';
+    std::cout << "1 in base 26 " << RowCol{0, 1}.as_excel_fmt() << '\n';
+    std::cout << "25 in base 26 " << RowCol{0, 25}.as_excel_fmt() << '\n';
+    std::cout << "26 in base 26 " << RowCol{0, 26}.as_excel_fmt() << '\n';
+    std::cout << "702 in base 26 " << RowCol{0, 702}.as_excel_fmt() << '\n';
+    std::cout << "703 in base 26 " << RowCol{0, 703}.as_excel_fmt() << '\n' << '\n';
+
+    for (std::uint16_t i = 0; i < 200; i += 25)
+    {
+        std::string colFormat = RowCol{i, i}.as_excel_fmt();
+        std::cout << i << " in base 26 " << colFormat << " back to number format "
+                  << RowCol::from_string(colFormat).as_colrow_fmt() << '\n';
+    }
+
+    return 0;
+
     auto options = CommandLine::parse(argc, argv);
     if (!options)
         return 0;
@@ -63,8 +79,7 @@ int main(int argc, char *argv[])
 
     case CommandLine::RunMode::Run:
         std::cout << "Testing reading and then writing config file out..." << '\n';
-        return main_run_tests( opt.testFile, opt.testProgram ); 
-
+        return main_run_tests(opt.testFile, opt.testProgram);
 
     default:
         break;

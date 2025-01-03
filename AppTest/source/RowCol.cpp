@@ -7,8 +7,26 @@
 
 std::string RowCol::as_excel_fmt() const
 {
-    const std::string_view letters{"abcdefghijklmnopqrstuvwxyz"};
-    return "";
+    std::string result{};
+    result.reserve(10);
+
+    if (col == 0)
+    {
+        result = "a";
+    }
+    else
+    {
+        auto c = col;
+        while (c > 0)
+        {
+            auto out = std::div(c, 26);
+            result += static_cast<char>('a' + out.rem);
+            c = out.quot;
+        }
+    }
+    std::ranges::reverse(result);
+    result.append(std::to_string(row));
+    return result;
 }
 
 std::string RowCol::as_colrow_fmt() const
@@ -54,7 +72,8 @@ RowCol RowCol::from_string(std::string_view const value)
     // Check for comma format
     {
         auto pos = value.find_first_of(",");
-        return parse_comma_fmt(value);
+        if (pos != std::string_view::npos)
+            return parse_comma_fmt(value);
     }
 
     auto pos = value.find_first_of("0123456789");
@@ -72,7 +91,7 @@ RowCol RowCol::from_string(std::string_view const value)
     std::size_t col = 0;
     for (auto l : letters | std::views::transform(toLower))
     {
-        col += (l - 'a') + ((numberLetters - 1) * 26);
+        col += (l - 'a') * std::pow(26, numberLetters - 1);
         --numberLetters;
     }
 

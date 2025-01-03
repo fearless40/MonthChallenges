@@ -20,6 +20,7 @@ FetchContent_Declare( clipp
     SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/clipp"
     GIT_PROGRESS True
     EXCLUDE_FROM_ALL "examples/"
+    FETCHCONTENT_UPDATES_DISCONNECTED true
 )
 
 FetchContent_MakeAvailable( clipp )
@@ -33,5 +34,6 @@ FetchContent_Declare(
     EXCLUDE_FROM_ALL "examples/"
     EXCLUDE_FROM_ALL "tests/"
     EXCLUDE_FROM_ALL "vendor/"
+    FETCHCONTENT_UPDATES_DISCONNECTED true
 )
 FetchContent_MakeAvailable(tomlplusplus)
