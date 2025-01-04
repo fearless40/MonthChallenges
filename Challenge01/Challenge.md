@@ -17,7 +17,7 @@ Inital challenge project is to load an array of integers from a file and be able
 </pre>
 
 ## User interaction
-The program loads the file and if not given the command line option of --guess will become interactive. The program will ask the user what the values they would like to look up.  Guesses are in excel *ColRow* format with *col* represented by letters and *rows* by numbers. _A1_ is the first col and row. *C10* is the 3rd col and 10th row. Above 26 columns the *col* numbering becomes _AA_, _AB_, _AC_ ... 
+The program loads the file and if not given the command line option of --guess will become interactive. The program will ask the user what the values they would like to look up.  Guesses are in *ColRow* format with *col* represented by letters and *rows* by numbers. It is a base 26 numbering system with A = 0, B = 1, C = 2, ..., Z = 25. For example A0 = {Col 0, Row 0}. B5 = {Col 1, Row 5}. AA1 = {Col 26, Row 1}
 An alternative format is col,row with each represented by numbers. 1,1 is equivalent to B1.
 
 ### Expected Output 
