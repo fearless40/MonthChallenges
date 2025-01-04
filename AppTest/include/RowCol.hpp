@@ -12,7 +12,7 @@ struct RowCol
 
     auto operator<=>(const RowCol &other) const = default;
 
-    std::string as_excel_fmt() const;
+    std::string as_base26_fmt() const;
 
     std::string as_colrow_fmt() const;
 

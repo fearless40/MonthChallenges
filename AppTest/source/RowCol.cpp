@@ -4,27 +4,11 @@
 #include <charconv>
 #include <ranges>
 #include <utility>
+#include "base26.hpp"
 
-std::string RowCol::as_excel_fmt() const
+std::string RowCol::as_base26_fmt() const
 {
-    std::string result{};
-    result.reserve(10);
-
-    if (col == 0)
-    {
-        result = "a";
-    }
-    else
-    {
-        auto c = col;
-        while (c > 0)
-        {
-            auto out = std::div(c, 26);
-            result += static_cast<char>('a' + out.rem);
-            c = out.quot;
-        }
-    }
-    std::ranges::reverse(result);
+    std::string result{ base26::to( col )};
     result.append(std::to_string(row));
     return result;
 }
@@ -67,15 +51,22 @@ RowCol parse_comma_fmt(const std::string_view value)
     return {};
 }
 
+
+/**
+ * @brief Converts a trimmed string (no whitespace allowed base26 or col,row format)
+ * @param value all whitespace must be trimmed otherwise evalutes to error 
+ * @return RowCol object initalized with value
+ */
 RowCol RowCol::from_string(std::string_view const value)
 {
-    // Check for comma format
-    {
-        auto pos = value.find_first_of(",");
-        if (pos != std::string_view::npos)
-            return parse_comma_fmt(value);
-    }
+    if( value.size() < 2 )
+        return {};
 
+    if( value[0] <= '9' and value[0] >= '0' ) {
+        // Assume comma format
+        return parse_comma_fmt(value);
+    }
+    
     auto pos = value.find_first_of("0123456789");
     if (pos == std::string_view::npos)
     {
@@ -83,23 +74,11 @@ RowCol RowCol::from_string(std::string_view const value)
     }
 
     auto letters = value.substr(0, pos);
-
-    // Convert all letters to lowercase
-    auto toLower = [](auto l) { return std::tolower(static_cast<unsigned char>(l)); };
-
-    std::size_t numberLetters = letters.size();
-    std::size_t col = 0;
-    for (auto l : letters | std::views::transform(toLower))
-    {
-        col += (l - 'a') * std::pow(26, numberLetters - 1);
-        --numberLetters;
-    }
-
+    
     RowCol ret;
-
     if (from_chars(value.substr(pos), ret.row))
     {
-        ret.col = static_cast<std::uint16_t>(col);
+        ret.col = static_cast<std::uint16_t>(base26::from(letters));
         return ret;
     }
 

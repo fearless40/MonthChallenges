@@ -7,6 +7,7 @@ add_executable( apptest
     TestDefinition.cpp
     TestConfigTOML.cpp
     runtests.cpp
+    base26.cpp
 )
 
 target_include_directories( apptest 
