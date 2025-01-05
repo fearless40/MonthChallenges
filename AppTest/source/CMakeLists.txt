@@ -21,5 +21,5 @@ target_link_libraries( apptest
     #PUBLIC ftxui::dom
     #PUBLIC ftxui::screen 
     #PUBLIC  tomlplusplus
-    
+    PRIVATE subprocess
 )

@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
         }));
     */
 
-    std::cout << "0 in base 26 " << RowCol{0, 0}.as_base26_fmt() << '\n';
+    /*std::cout << "0 in base 26 " << RowCol{0, 0}.as_base26_fmt() << '\n';
     std::cout << "1 in base 26 " << RowCol{0, 1}.as_base26_fmt() << '\n';
     std::cout << "25 in base 26 " << RowCol{0, 25}.as_base26_fmt() << '\n';
     std::cout << "26 in base 26 " << RowCol{0, 26}.as_base26_fmt() << '\n';
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
                   << RowCol::from_string(colFormat).as_colrow_fmt() << '\n';
     }
 
-    return 0;
+    return 0;*/
 
     auto options = CommandLine::parse(argc, argv);
     if (!options)
@@ -78,7 +78,6 @@ int main(int argc, char *argv[])
         return generate_tests_cmd_line(opt.testFile, opt.tests, opt.huge, opt.overwrite);
 
     case CommandLine::RunMode::Run:
-        std::cout << "Testing reading and then writing config file out..." << '\n';
         return main_run_tests(opt.testFile, opt.testProgram);
 
     default:
