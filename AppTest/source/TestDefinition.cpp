@@ -152,7 +152,7 @@ QueryAnswers Definition::write_data_value(std::ostream &file, const std::vector<
                 if (mError == Errors::DataValueTooLarge)
                     file << std::numeric_limits<std::int16_t>::max() + random_values();
                 else if (mError == Errors::DataValueTooSmall)
-                    file << std::numeric_limits<std::int16_t>::min() - random_values();
+                    file << static_cast<std::int32_t>(std::numeric_limits<std::int16_t>::min() - random_values());
                 else if (mError == Errors::DataHasText)
                     file << "ab1234df";
             }
