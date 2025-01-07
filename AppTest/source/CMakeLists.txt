@@ -22,4 +22,5 @@ target_link_libraries( apptest
     #PUBLIC ftxui::screen 
     #PUBLIC  tomlplusplus
     PRIVATE subprocess
+    PRIVATE reproc++
 )

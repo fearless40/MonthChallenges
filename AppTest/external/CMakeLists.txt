@@ -44,3 +44,17 @@ FetchContent_Declare(
     FETCHCONTENT_UPDATES_DISCONNECTED true
 )
 FetchContent_MakeAvailable(subprocess)
+
+
+set(REPROC++ ON)
+
+FetchContent_Declare(
+    reproc
+    GIT_REPOSITORY https://github.com/DaanDeMeyer/reproc.git
+    GIT_TAG v14.2.5
+    GIT_PROGRESS True
+    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/reproc"
+    FETCHCONTENT_UPDATES_DISCONNECTED true
+)
+FetchContent_MakeAvailable(reproc)
+
