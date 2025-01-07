@@ -57,6 +57,11 @@ void Configuration::create_new_test(const Definition &test, std::size_t nbrQueri
                                Random::between<std::uint16_t>(0, test.mNbrCols - 1));
     }
 
+    // Sort the querires and then remove duplicates
+    std::ranges::sort(t.queries, std::less{});
+    auto duplicates = std::ranges::unique(t.queries);
+    t.queries.erase(duplicates.begin(), duplicates.end());
+
     // Generate Out of bound queries
     for (std::size_t oobCount = 0; oobCount < outofbounds; ++oobCount)
     {
@@ -70,13 +75,10 @@ void Configuration::create_new_test(const Definition &test, std::size_t nbrQueri
     mTests.emplace_back(t);
 }
 
-void Configuration::add_existing( const Definition & test, std::string && filename, Queries && q, QueryAnswers && qa, std::vector<std::string> && rej) {
-    mTests.push_back( {test, filename, 
-        q,
-        qa,
-        rej 
-    }
-    );
+void Configuration::add_existing(const Definition &test, std::string &&filename, Queries &&q, QueryAnswers &&qa,
+                                 std::vector<std::string> &&rej)
+{
+    mTests.push_back({test, filename, q, qa, rej});
 }
 
 void Configuration::write_all_tests(std::filesystem::path locationToWrite, bool locateTestFileInSeperateFolder)
@@ -115,6 +117,13 @@ Configuration Configuration::generate_default(bool noErrors, bool generateHuge)
                       }))
     {
         config.create_new_test(test, 5, 2);
+    }
+
+    if (generateHuge)
+    {
+        Definition huge{"Huge Test - Negative numbers", Definition::HugeSize, Definition::HugeSize,
+                        RowColDataGeneration::IncrementFromNeg};
+        config.create_new_test(huge, 20, 0);
     }
 
     return config;

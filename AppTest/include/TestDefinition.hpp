@@ -54,10 +54,14 @@ class Definition
     Errors mError{Errors::None};
     bool mInjectRandomWhiteSpace{false};
 
+    static constexpr std::uint16_t HugeSize = 8000;
+
     bool huge() const
     {
-        return mNbrRows == std::numeric_limits<std::uint16_t>::max() &&
-               mNbrCols == std::numeric_limits<std::uint16_t>::max();
+        return mNbrRows == HugeSize && mNbrCols == HugeSize;
+
+        /*return mNbrRows == std::numeric_limits<std::uint16_t>::max() - 2 &&
+               mNbrCols == std::numeric_limits<std::uint16_t>::max() - 2;*/
     }
 
     QueryAnswers generate(std::ostream &file, const std::vector<RowCol> &guesses) const;
