@@ -1,5 +1,6 @@
 #include "TestDefinition.hpp"
 #include <algorithm>
+#include <iostream>
 #include <random>
 #include <sstream>
 
