@@ -19,6 +19,8 @@ const Definition default_tests[] = {
     {"Small Test - Negative numbers", 2, 2, RowColDataGeneration::IncrementFromNeg},
     {"Medium Test - Negative numbers", 8, 8, RowColDataGeneration::IncrementFromNeg},
     {"Large Test  - Negative numbers", 30, 30, RowColDataGeneration::IncrementFromNeg},
+    {"Larger Test", 100, 100, RowColDataGeneration::IncrementFromPos},
+    {"Larger Test  - Negative numbers", 100, 100, RowColDataGeneration::IncrementFromPos},
     mErr(Errors::RowTooLarge, "Error - Row too large"),
     mErr(Errors::RowIs0, "Error - Row is 0"),
     mErr(Errors::RowIsNegative, "Error - Row is Negative"),
@@ -42,8 +44,11 @@ void Configuration::create_new_test(const Definition &test, std::size_t nbrQueri
 
     if (test.mError != Errors::None)
     {
-        t.expected.emplace_back(QueryAnswer{true, {}, {}});
+        // t.expected.emplace_back(QueryAnswer{true, {}, {}});
+
         mTests.emplace_back(t);
+
+        // std::cout << "Answeres #" << t.expected.size() << '\n';
         return;
     }
 
