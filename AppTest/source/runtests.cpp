@@ -1,7 +1,6 @@
 #include "runtests.hpp"
 #include "TestConfigTOML.hpp"
 #include "TestDefinition.hpp"
-// #include "subprocess.hpp"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -30,12 +29,12 @@ struct ExecuteResult
 
 ExecuteResult execute_app(const std::vector<std::string> &arguments)
 {
-    reproc::stop_actions stopActions{{reproc::stop::kill, 500ms}, {reproc::stop::terminate, 1000ms}, {}};
+    reproc::stop_actions stopActions{{reproc::stop::kill, 5000ms}, {reproc::stop::terminate, 10000ms}, {}};
 
     std::string output;
     reproc::options options;
     options.stop = stopActions;
-    options.deadline = 500ms;
+    options.deadline = 5000ms;
     reproc::process process;
 
     std::error_code ec = process.start(arguments, options);
@@ -51,44 +50,21 @@ ExecuteResult execute_app(const std::vector<std::string> &arguments)
     ec = reproc::drain(process, sink, reproc::sink::null);
     if (ec)
     {
-        std::cout << ec.value() << '\n';
+        std::cout << ec.message() << '\n';
+        return {output, 0, false, false};
     }
 
     int status = 0;
     std::tie(status, ec) = process.wait(reproc::infinite);
+    if (ec)
+    {
+        std::cout << ec.message() << '\n';
+        return {};
+    }
 
-    std::cout << output << '\n';
+    std::cout << output << std::endl;
     return {output, 0, false, false};
 }
-
-/*ExecuteResult execute_app(const std::string &arguments)
-{
-    namespace sp = subprocess;
-    auto result = sp::Popen(arguments, sp::output{sp::PIPE}, sp::bufsize{2048});
-    std::string appResult;
-    std::atomic<bool> programFinished{false};
-
-    // If it takes longer than 1 min then quit with a time out.
-    auto start = std::chrono::high_resolution_clock::now();
-
-    std::jthread runSubprocess([&]() {
-        appResult = result.communicate().first.buf.data();
-        programFinished = true;
-    });
-
-    while (!programFinished && ((std::chrono::high_resolution_clock::now() - start) <
-std::chrono::milliseconds(500)))
-    {
-    }
-    if (!programFinished)
-    {
-        std::cout << "Attempting to kill the application \n";
-        result.kill();
-        return {appResult, result.retcode(), false, true};
-    }
-    std::cout << appResult << '\n';
-    return {appResult, result.retcode(), false, false};
-}*/
 
 bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, const ExecuteResult &exeResults)
 {
@@ -102,10 +78,14 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
         if (std::none_of(expected.rejected.begin(), expected.rejected.end(), [&](const auto &lookFor) {
                 auto result = exeResults.data.find(lookFor, 0);
                 if (result == std::string::npos)
-                    return false;
-                return true;
+                {
+                    return true;
+                }
+                std::cout << std::format("found rejected string {} at {}\n", lookFor, result);
+                return false;
             }))
         {
+            std::cout << "Failed due to finding rejected string.\n";
             return false;
         }
     }
@@ -128,7 +108,11 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
     return std::all_of(answers.begin(), answers.end(), [&](const auto &lookFor) {
         auto result = exeResults.data.find(lookFor, 0);
         if (result == std::string::npos)
+        {
+            std::cout << std::format("Did not find expected result: {} \n", lookFor);
             return false;
+        }
+        std::cout << std::format("Found result {} at {}\n", lookFor, result);
         return true;
     });
 }
@@ -150,7 +134,15 @@ TestResult run_test(const Tests::Configuration::ExpectedResults &expected, std::
     }
 
     const std::string cmd = std::format("{} --load {} --guess {}", app, expected.filename, guesses);
-    std::vector<std::string> cmdVector{app, "--load", expected.filename, "--guess", guesses};
+    std::vector<std::string> cmdVector{app, "--load", expected.filename, "--guess"};
+    for (auto &guess : expected.queries)
+    {
+        cmdVector.push_back(guess.as_base26_fmt());
+    }
+    if (expected.queries.size() == 0)
+    {
+        cmdVector.push_back("a0");
+    }
 
     std::cout << "Running test: " << cmd << '\n';
     auto start = std::chrono::high_resolution_clock::now();
