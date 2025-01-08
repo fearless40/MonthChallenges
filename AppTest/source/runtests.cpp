@@ -1,10 +1,13 @@
 #include "runtests.hpp"
 #include "TestConfigTOML.hpp"
 #include "TestDefinition.hpp"
+#include "base26.hpp"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <iostream>
+#include <numeric>
+#include <ranges>
 #include <reproc++/drain.hpp>
 #include <reproc++/reproc.hpp>
 #include <thread>
@@ -25,6 +28,22 @@ struct ExecuteResult
     int programReturnCode{0};
     bool programError{false};
     bool timeOut{false};
+};
+
+enum class CheckLogType
+{
+    rejection,
+    answer,
+    expected,
+    program_failure
+};
+
+struct CheckLogEntry
+{
+    CheckLogType type;
+    bool foundValue;
+    std::string searchValue;
+    std::size_t location;
 };
 
 ExecuteResult execute_app(const std::vector<std::string> &arguments)
@@ -50,19 +69,24 @@ ExecuteResult execute_app(const std::vector<std::string> &arguments)
     ec = reproc::drain(process, sink, reproc::sink::null);
     if (ec)
     {
-        std::cout << ec.message() << '\n';
+        std::cout << "Drain error: " << ec.message() << '\n';
         return {output, 0, false, false};
     }
 
     int status = 0;
     std::tie(status, ec) = process.wait(reproc::infinite);
-    if (ec)
+    if (ec && ec.value() != static_cast<int>(std::errc::operation_not_permitted))
     {
-        std::cout << ec.message() << '\n';
-        return {};
+        std::cout << "Stop error: " << ec.message() << " " << ec.value() << '\n';
+        std::cout << "Unable to get program exit code.\n";
+        std::cout << "Program error code: " << status << '\n';
     }
 
-    std::cout << output << std::endl;
+    for (auto tok : std::views::split(output, '\n'))
+    {
+        std::cout << " >> " << std::string_view(tok.begin(), tok.end()) << '\n';
+    }
+
     return {output, 0, false, false};
 }
 
@@ -72,11 +96,20 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
     if (exeResults.programError || exeResults.timeOut)
         return false;
 
+    std::string lowerProgramOutput;
+    lowerProgramOutput.reserve(exeResults.data.size());
+    std::transform(exeResults.data.begin(), exeResults.data.end(), std::back_inserter(lowerProgramOutput),
+                   base26::toLower);
+
     // Look if the rejected keyword pops up in the input
     if (expected.rejected.size() > 0)
     {
         if (std::none_of(expected.rejected.begin(), expected.rejected.end(), [&](const auto &lookFor) {
-                auto result = exeResults.data.find(lookFor, 0);
+                std::string lcase;
+                lcase.reserve(lookFor.size());
+                std::transform(lookFor.begin(), lookFor.end(), std::back_inserter(lcase), base26::toLower);
+
+                auto result = lowerProgramOutput.find(lcase, 0);
                 if (result == std::string::npos)
                 {
                     return true;
@@ -90,23 +123,34 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
         }
     }
 
+    if (expected.test.mError != Tests::Errors::None)
+    {
+        // Search for the word ERROR
+        auto result = lowerProgramOutput.find("error");
+        if (result == std::string::npos)
+        {
+            return false;
+        }
+        return true;
+    }
+
     // Look for the answers now
     // Generate answers to search for
     std::vector<std::string> answers;
-    for (const Tests::QueryAnswer &q : expected.expected)
-    {
-        if (q.is_oob)
-        {
-            answers.emplace_back("OOB");
-        }
-        else
-        {
-            answers.emplace_back(std::format("{}", q.answer));
-        }
-    }
+    answers.reserve(expected.expected.size());
+    std::transform(expected.expected.begin(), expected.expected.end(), std::back_inserter(answers),
+                   [](const Tests::QueryAnswer &q) {
+                       if (q.is_oob)
+                           return std::string("oob");
+                       return std::to_string(q.answer);
+                   });
 
     return std::all_of(answers.begin(), answers.end(), [&](const auto &lookFor) {
-        auto result = exeResults.data.find(lookFor, 0);
+        std::string lcase;
+        lcase.reserve(lookFor.size());
+        std::transform(lookFor.begin(), lookFor.end(), std::back_inserter(lcase), base26::toLower);
+
+        auto result = lowerProgramOutput.find(lcase, 0);
         if (result == std::string::npos)
         {
             std::cout << std::format("Did not find expected result: {} \n", lookFor);
@@ -120,21 +164,8 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
 TestResult run_test(const Tests::Configuration::ExpectedResults &expected, std::string &app)
 {
 
-    std::string guesses;
-    guesses.reserve(512);
-
-    for (auto &guess : expected.queries)
-    {
-        guesses.append(guess.as_base26_fmt());
-        guesses.append(" ");
-    }
-    if (expected.queries.size() == 0)
-    {
-        guesses.append("a0");
-    }
-
-    const std::string cmd = std::format("{} --load {} --guess {}", app, expected.filename, guesses);
     std::vector<std::string> cmdVector{app, "--load", expected.filename, "--guess"};
+
     for (auto &guess : expected.queries)
     {
         cmdVector.push_back(guess.as_base26_fmt());
@@ -143,6 +174,9 @@ TestResult run_test(const Tests::Configuration::ExpectedResults &expected, std::
     {
         cmdVector.push_back("a0");
     }
+
+    std::string cmd = std::accumulate(std::next(cmdVector.begin()), cmdVector.end(), cmdVector[0],
+                                      [](std::string a, std::string &b) { return std::move(a) + ' ' + b; });
 
     std::cout << "Running test: " << cmd << '\n';
     auto start = std::chrono::high_resolution_clock::now();

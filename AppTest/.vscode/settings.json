@@ -85,6 +85,8 @@
         "future": "cpp",
         "numeric": "cpp",
         "regex": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "error.h": "c",
+        "errno.h": "c"
     }
 }
