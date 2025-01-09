@@ -1,7 +1,7 @@
 #include "runtests.hpp"
 #include "TestConfigTOML.hpp"
 #include "TestDefinition.hpp"
-#include "base26.hpp"
+#include "stringutil.hpp"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -11,44 +11,110 @@
 #include <reproc++/drain.hpp>
 #include <reproc++/reproc.hpp>
 #include <thread>
+#include <variant>
 
 using namespace std::chrono_literals;
 
+struct AppRejection
+{
+    std::string rejectionText;
+    std::size_t location;
+    operator std::string() const noexcept
+    {
+        return as_string();
+    }
+    std::string as_string() const noexcept
+    {
+        return std::format("Found rejection text [{}] at location [{}]'\n", rejectionText, location);
+    }
+};
+
+struct AppMissingAnswer
+{
+    std::string missingAnswer;
+    operator std::string() const noexcept
+    {
+        return as_string();
+    }
+    std::string as_string() const noexcept
+    {
+        return std::format("Missing answer [{}] '\n", missingAnswer);
+    }
+};
+
+struct AppFoundAnswer
+{
+    std::string answer;
+    std::size_t location;
+    operator std::string() const noexcept
+    {
+        return as_string();
+    }
+    std::string as_string() const noexcept
+    {
+        return std::format("Found answer [{}] at location [{}]'\n", answer, location);
+    }
+};
+
+struct AppTimeOut
+{
+    std::chrono::milliseconds timeout;
+    operator std::string() const noexcept
+    {
+        return as_string();
+    }
+
+    std::string as_string() const noexcept
+    {
+        return std::format("Application timed out after [{}] '\n", timeout);
+    }
+};
+
+struct AppErrorCondition
+{
+    std::error_code ec;
+    operator std::string() const noexcept
+    {
+        return as_string();
+    }
+
+    std::string as_string() const noexcept
+    {
+        return std::format("Error in running app with code [{}] with message [{}] '\n", ec.value(), ec.message());
+    }
+};
+
+using AppLogEntry = std::variant<AppRejection, AppMissingAnswer, AppFoundAnswer, AppTimeOut, AppErrorCondition>;
+using AppLog = std::vector<AppLogEntry>;
+
 struct TestResult
 {
-    std::chrono::milliseconds timeToRun;
     const Tests::Definition &def;
+    std::chrono::milliseconds timeToRun;
     std::string programOutput;
+    std::string cmdline;
+    std::vector<AppLogEntry> logs;
     bool passed;
+
+    TestResult(const Tests::Definition &definition) : def(definition) {};
+
+  private:
+    TestResult();
 };
 
 struct ExecuteResult
 {
-    std::string data;
-    int programReturnCode{0};
-    bool programError{false};
-    bool timeOut{false};
-};
-
-enum class CheckLogType
-{
-    rejection,
-    answer,
-    expected,
-    program_failure
-};
-
-struct CheckLogEntry
-{
-    CheckLogType type;
-    bool foundValue;
-    std::string searchValue;
-    std::size_t location;
+    bool failed{true};
+    std::string appOutput;
+    int appReturnCode{-1};
+    std::vector<AppLogEntry> logs;
 };
 
 ExecuteResult execute_app(const std::vector<std::string> &arguments)
 {
     reproc::stop_actions stopActions{{reproc::stop::kill, 5000ms}, {reproc::stop::terminate, 10000ms}, {}};
+
+    ExecuteResult exeResult;
 
     std::string output;
     reproc::options options;
@@ -61,64 +127,72 @@ ExecuteResult execute_app(const std::vector<std::string> &arguments)
     if (ec == std::errc::no_such_file_or_directory)
     {
         std::cerr << "Program not found. Make sure it's available from the PATH. \n";
-        return {"", -1, true, false};
+        exeResult.logs.push_back(AppErrorCondition(ec));
+        return exeResult;
     }
 
-    reproc::sink::string sink(output);
+    reproc::sink::string sink(exeResult.appOutput);
 
     ec = reproc::drain(process, sink, reproc::sink::null);
-    if (ec)
+    if (ec == std::errc::timed_out)
     {
-        std::cout << "Drain error: " << ec.message() << '\n';
-        return {output, 0, false, false};
+        exeResult.logs.push_back(AppTimeOut{5000ms});
+        return exeResult;
+    }
+    else if (ec)
+    {
+        std::cerr << "Drain error: " << ec.message() << '\n';
+        exeResult.logs.push_back(AppErrorCondition(ec));
+        return exeResult;
     }
 
     int status = 0;
     std::tie(status, ec) = process.wait(reproc::infinite);
+
     if (ec && ec.value() != static_cast<int>(std::errc::operation_not_permitted))
     {
-        std::cout << "Stop error: " << ec.message() << " " << ec.value() << '\n';
-        std::cout << "Unable to get program exit code.\n";
-        std::cout << "Program error code: " << status << '\n';
+        std::cerr << "Stop error: " << ec.message() << " " << ec.value() << '\n';
+        std::cerr << "Unable to get program exit code.\n";
+        std::cerr << "Program error code: " << status << '\n';
+        exeResult.logs.push_back(AppErrorCondition(ec));
+        return exeResult;
     }
 
-    for (auto tok : std::views::split(output, '\n'))
+    /*for (auto tok : std::views::split(output, '\n'))
     {
         std::cout << " >> " << std::string_view(tok.begin(), tok.end()) << '\n';
-    }
+    }*/
 
-    return {output, 0, false, false};
+    exeResult.failed = false;
+    exeResult.appReturnCode = status;
+
+    return exeResult;
 }
 
-bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, const ExecuteResult &exeResults)
+bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, const std::string &appOutput,
+                         std::vector<AppLogEntry> &log)
 {
 
-    if (exeResults.programError || exeResults.timeOut)
-        return false;
-
-    std::string lowerProgramOutput;
-    lowerProgramOutput.reserve(exeResults.data.size());
-    std::transform(exeResults.data.begin(), exeResults.data.end(), std::back_inserter(lowerProgramOutput),
-                   base26::toLower);
+    std::string lowerProgramOutput = util::to_lower_copy(appOutput);
 
     // Look if the rejected keyword pops up in the input
     if (expected.rejected.size() > 0)
     {
         if (std::none_of(expected.rejected.begin(), expected.rejected.end(), [&](const auto &lookFor) {
-                std::string lcase;
-                lcase.reserve(lookFor.size());
-                std::transform(lookFor.begin(), lookFor.end(), std::back_inserter(lcase), base26::toLower);
+                std::string lcase = util::to_lower_copy(lookFor);
 
                 auto result = lowerProgramOutput.find(lcase, 0);
                 if (result == std::string::npos)
                 {
                     return true;
                 }
-                std::cout << std::format("found rejected string {} at {}\n", lookFor, result);
+
+                log.push_back(AppRejection{lookFor, result});
+                //                std::cout << std::format("found rejected string {} at {}\n", lookFor, result);
                 return false;
             }))
         {
-            std::cout << "Failed due to finding rejected string.\n";
+            // std::cout << "Failed due to finding rejected string.\n";
             return false;
         }
     }
@@ -129,8 +203,10 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
         auto result = lowerProgramOutput.find("error");
         if (result == std::string::npos)
         {
+            log.push_back(AppMissingAnswer{"error"});
             return false;
         }
+        log.push_back(AppFoundAnswer("error", result));
         return true;
     }
 
@@ -146,17 +222,17 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
                    });
 
     return std::all_of(answers.begin(), answers.end(), [&](const auto &lookFor) {
-        std::string lcase;
-        lcase.reserve(lookFor.size());
-        std::transform(lookFor.begin(), lookFor.end(), std::back_inserter(lcase), base26::toLower);
+        std::string lcase = util::to_lower_copy(lookFor);
 
         auto result = lowerProgramOutput.find(lcase, 0);
         if (result == std::string::npos)
         {
-            std::cout << std::format("Did not find expected result: {} \n", lookFor);
+            log.push_back(AppMissingAnswer(lookFor));
+            // std::cout << std::format("Did not find expected result: {} \n", lookFor);
             return false;
         }
-        std::cout << std::format("Found result {} at {}\n", lookFor, result);
+        // std::cout << std::format("Found result {} at {}\n", lookFor, result);
+        log.push_back(AppFoundAnswer(lookFor, result));
         return true;
     });
 }
@@ -164,6 +240,7 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
 TestResult run_test(const Tests::Configuration::ExpectedResults &expected, std::string &app)
 {
 
+    TestResult result(expected.test);
     std::vector<std::string> cmdVector{app, "--load", expected.filename, "--guess"};
 
     for (auto &guess : expected.queries)
@@ -175,18 +252,25 @@ TestResult run_test(const Tests::Configuration::ExpectedResults &expected, std::
         cmdVector.push_back("a0");
     }
 
-    std::string cmd = std::accumulate(std::next(cmdVector.begin()), cmdVector.end(), cmdVector[0],
-                                      [](std::string a, std::string &b) { return std::move(a) + ' ' + b; });
+    result.cmdline = std::accumulate(std::next(cmdVector.begin()), cmdVector.end(), cmdVector[0],
+                                     [](std::string a, std::string &b) { return std::move(a) + ' ' + b; });
 
-    std::cout << "Running test: " << cmd << '\n';
+    std::cout << "Running test: " << result.cmdline << '\n';
     auto start = std::chrono::high_resolution_clock::now();
     auto ret = execute_app(cmdVector);
     auto end = std::chrono::high_resolution_clock::now();
 
-    TestResult result{std::chrono::duration_cast<std::chrono::milliseconds>(end - start), expected.test, ret.data,
-                      program_output_pass(expected, ret)};
+    result.timeToRun = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
-    std::cout << std::format("Passed: [{}] Took: [{}] \n", result.passed, result.timeToRun);
+    result.logs = std::move(ret.logs);
+    result.passed = !ret.failed;
+    result.programOutput = ret.appOutput;
+
+    if (result.passed)
+        result.passed = program_output_pass(expected, result.programOutput, result.logs);
+
+    std::cout << std::format("Passed: [{}{}\u001b[0m] Took: [\u001b[33m{}\u001b[0m] \n",
+                             result.passed == true ? "\u001b[32m" : "\u001b[31m", result.passed, result.timeToRun);
     return result;
 }
 
@@ -203,6 +287,32 @@ std::vector<TestResult> run_all_tests(Tests::Configuration &config, std::filesys
     return results;
 }
 
+void print_report(const std::vector<TestResult> &tests)
+{
+    // Only print details on failed tests
+    const char *red = "\u001b[31m";
+    const char *green = "\u001b[32m";
+    const char *yellow = "\u001b[33m";
+    const char *blue = "\u001b[34m";
+    const char *def = "\u001b[0m";
+
+    for (const TestResult &tr : tests | std::views::filter([](const TestResult &t) { return !t.passed; }))
+    {
+        std::cout << "------------------------------------" << '\n';
+        std::cout << "Test failed: " << yellow << tr.def.mName << def << '\n';
+        std::cout << "Program Output: \n" << green;
+        std::cout << tr.programOutput << def << '\n';
+        std::cout << "Errors encountered: \n";
+
+        int count = 1;
+
+        for (const AppLogEntry &entry : tr.logs)
+        {
+            std::cout << def << count << ".  " << std::visit([](auto &t) -> std::string { return t; }, entry);
+        }
+    }
+}
+
 int main_run_tests(std::filesystem::path testPath, std::filesystem::path exe)
 {
 
@@ -212,7 +322,8 @@ int main_run_tests(std::filesystem::path testPath, std::filesystem::path exe)
 
     std::cout << "Finished Loading: " << testPath << '\n';
 
-    run_all_tests(loadMe, exe);
+    auto report = run_all_tests(loadMe, exe);
+    print_report(report);
 
     return 0;
 }
