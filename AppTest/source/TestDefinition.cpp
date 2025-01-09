@@ -91,8 +91,8 @@ QueryAnswers Definition::write_data_value(std::ostream &file, const std::vector<
     std::uniform_int_distribution<std::int16_t> dataRandom(std::numeric_limits<std::int16_t>::min(),
                                                            std::numeric_limits<std::int16_t>::max());
     std::uniform_int_distribution<> boolGenerator(0, 1);
-    std::uniform_int_distribution<std::size_t> random_row(0, mNbrRows);
-    std::uniform_int_distribution<std::size_t> random_col(0, mNbrCols);
+    std::uniform_int_distribution<std::size_t> random_row(0, mNbrRows - 1);
+    std::uniform_int_distribution<std::size_t> random_col(0, mNbrCols - 1);
 
     auto bool_random = [&boolGenerator, &gen]() -> bool {
         if (boolGenerator(gen) == 0)
@@ -151,9 +151,9 @@ QueryAnswers Definition::write_data_value(std::ostream &file, const std::vector<
             if (row == randRow && mError != Errors::None && col == randCol)
             {
                 if (mError == Errors::DataValueTooLarge)
-                    file << std::numeric_limits<std::int16_t>::max() + random_values();
+                    file << std::numeric_limits<std::int16_t>::max() + std::abs(random_values());
                 else if (mError == Errors::DataValueTooSmall)
-                    file << static_cast<std::int32_t>(std::numeric_limits<std::int16_t>::min() - random_values());
+                    file << std::numeric_limits<std::int16_t>::min() - std::abs(random_values());
                 else if (mError == Errors::DataHasText)
                     file << "ab1234df";
             }
