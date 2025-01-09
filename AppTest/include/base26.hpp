@@ -5,5 +5,5 @@ namespace base26
 {
 std::string to(int value);
 int from(std::string_view const letters);
-char toLower(char l);
+
 } // namespace base26
