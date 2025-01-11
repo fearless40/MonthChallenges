@@ -112,14 +112,14 @@ struct ExecuteResult
 
 ExecuteResult execute_app(const std::vector<std::string> &arguments)
 {
-    reproc::stop_actions stopActions{{reproc::stop::kill, 5000ms}, {reproc::stop::terminate, 10000ms}, {}};
+    reproc::stop_actions stopActions{{reproc::stop::kill, 100ms}, {reproc::stop::terminate, 1000ms}, {}};
 
     ExecuteResult exeResult;
 
     std::string output;
     reproc::options options;
     options.stop = stopActions;
-    options.deadline = 5000ms;
+    options.deadline = 100ms;
     reproc::process process;
 
     std::error_code ec = process.start(arguments, options);
@@ -167,6 +167,46 @@ ExecuteResult execute_app(const std::vector<std::string> &arguments)
     exeResult.appReturnCode = status;
 
     return exeResult;
+}
+
+bool verify_whole_string(const std::string &output, const std::string &foundit, std::size_t startingPos)
+{
+    // looking for 3:  123 [bad]// 321 [bad]// 12,-3, [bad]// 1 2 3 [ok] // 1,2,3 [ok]//  (12)
+    const std::string_view allowedSeperators{", []();|\n\r\t\0"};
+    std::size_t startOfString = startingPos;
+    std::size_t endOfString = startingPos + foundit.length();
+
+    // Search toward the begin() of the string
+    for (std::size_t i = startingPos; i >= 0; --i)
+    {
+        // std::cout << output[i] << " " << i << '\n';
+        auto res = allowedSeperators.find_first_of(output[i]);
+        if (res != std::string_view::npos || i == 0)
+        {
+            // std::cout << "res != npos " << output[i] << " " << i << '\n';
+            startOfString = i != 0 ? i + 1 : i;
+            break;
+        }
+    }
+
+    // Search to the end() of the string
+    for (std::size_t i = startingPos; i <= output.length(); ++i)
+    {
+        auto res = allowedSeperators.find_first_of(output[i]);
+        if (res != std::string_view::npos || i == output.length())
+        {
+            endOfString = i;
+            break;
+        }
+    }
+
+    /*std::cout << "------------------------------------------\n";
+    std::cout << output << '\n';
+    std::cout << std::format("Verfiy:: start:{} to end:{} is {} == {}'\n", startOfString, endOfString,
+                             output.substr(startOfString, (endOfString - startOfString)), foundit);
+    std::cout << "Verify: " << output.substr(startOfString, endOfString - startOfString) << " == " << foundit << '\n';
+    std::cout << (output.substr(startOfString, (endOfString - startOfString)) == foundit) << '\n';*/
+    return output.substr(startOfString, (endOfString - startOfString)) == foundit;
 }
 
 bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, const std::string &appOutput,
@@ -232,6 +272,13 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
             return false;
         }
         // std::cout << std::format("Found result {} at {}\n", lookFor, result);
+        // Verify answer (string must not be connected to a nother letter or number if it is then the answer is false)
+        if (verify_whole_string(lowerProgramOutput, lookFor, result) == false)
+        {
+            log.push_back(AppMissingAnswer(lookFor));
+            return false;
+        }
+
         log.push_back(AppFoundAnswer(lookFor, result));
         return true;
     });
