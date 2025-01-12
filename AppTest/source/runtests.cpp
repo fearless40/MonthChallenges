@@ -19,6 +19,7 @@ struct AppRejection
 {
     std::string rejectionText;
     std::size_t location;
+    std::size_t end;
     operator std::string() const noexcept
     {
         return as_string();
@@ -46,6 +47,7 @@ struct AppFoundAnswer
 {
     std::string answer;
     std::size_t location;
+    std::size_t end;
     operator std::string() const noexcept
     {
         return as_string();
@@ -158,18 +160,20 @@ ExecuteResult execute_app(const std::vector<std::string> &arguments)
         return exeResult;
     }
 
-    /*for (auto tok : std::views::split(output, '\n'))
-    {
-        std::cout << " >> " << std::string_view(tok.begin(), tok.end()) << '\n';
-    }*/
-
     exeResult.failed = false;
     exeResult.appReturnCode = status;
 
     return exeResult;
 }
 
-bool verify_whole_string(const std::string &output, const std::string &foundit, std::size_t startingPos)
+struct SubString
+{
+    std::size_t start;
+    std::size_t end;
+};
+
+std::optional<SubString> verify_whole_string(const std::string &output, const std::string &foundit,
+                                             std::size_t startingPos)
 {
     // looking for 3:  123 [bad]// 321 [bad]// 12,-3, [bad]// 1 2 3 [ok] // 1,2,3 [ok]//  (12)
     const std::string_view allowedSeperators{", []();|\n\r\t\0"};
@@ -200,13 +204,12 @@ bool verify_whole_string(const std::string &output, const std::string &foundit, 
         }
     }
 
-    /*std::cout << "------------------------------------------\n";
-    std::cout << output << '\n';
-    std::cout << std::format("Verfiy:: start:{} to end:{} is {} == {}'\n", startOfString, endOfString,
-                             output.substr(startOfString, (endOfString - startOfString)), foundit);
-    std::cout << "Verify: " << output.substr(startOfString, endOfString - startOfString) << " == " << foundit << '\n';
-    std::cout << (output.substr(startOfString, (endOfString - startOfString)) == foundit) << '\n';*/
-    return output.substr(startOfString, (endOfString - startOfString)) == foundit;
+    if (output.substr(startOfString, (endOfString - startOfString)) == foundit)
+    {
+        return SubString{startOfString, endOfString};
+    }
+
+    return {};
 }
 
 bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, const std::string &appOutput,
@@ -223,16 +226,19 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
 
                 auto result = lowerProgramOutput.find(lcase, 0);
                 if (result == std::string::npos)
-                {
                     return true;
+
+                auto check = verify_whole_string(appOutput, lcase, result);
+
+                if (check)
+                {
+                    log.push_back(AppRejection{lookFor, check.value().start, check.value().end});
+                    return false;
                 }
 
-                log.push_back(AppRejection{lookFor, result});
-                //                std::cout << std::format("found rejected string {} at {}\n", lookFor, result);
-                return false;
+                return true;
             }))
         {
-            // std::cout << "Failed due to finding rejected string.\n";
             return false;
         }
     }
@@ -246,8 +252,12 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
             log.push_back(AppMissingAnswer{"error"});
             return false;
         }
-        log.push_back(AppFoundAnswer("error", result));
-        return true;
+        auto check = verify_whole_string(appOutput, "error", result);
+        if (check)
+        {
+            log.push_back(AppFoundAnswer("error", check.value().start, check.value().end));
+            return true;
+        }
     }
 
     // Look for the answers now
@@ -268,18 +278,18 @@ bool program_output_pass(const Tests::Configuration::ExpectedResults &expected, 
         if (result == std::string::npos)
         {
             log.push_back(AppMissingAnswer(lookFor));
-            // std::cout << std::format("Did not find expected result: {} \n", lookFor);
             return false;
         }
-        // std::cout << std::format("Found result {} at {}\n", lookFor, result);
         // Verify answer (string must not be connected to a nother letter or number if it is then the answer is false)
-        if (verify_whole_string(lowerProgramOutput, lookFor, result) == false)
+
+        auto check = verify_whole_string(lowerProgramOutput, lookFor, result);
+        if (!check)
         {
             log.push_back(AppMissingAnswer(lookFor));
             return false;
         }
 
-        log.push_back(AppFoundAnswer(lookFor, result));
+        log.push_back(AppFoundAnswer(lookFor, check.value().start, check.value().end));
         return true;
     });
 }
@@ -342,16 +352,77 @@ void print_report(const std::vector<TestResult> &tests)
     const char *yellow = "\u001b[33m";
     const char *blue = "\u001b[34m";
     const char *def = "\u001b[0m";
+    const char *bold = "\x1b[1m";
+
+    // ESC[38;5;{ID}m
+
+    auto make_color = [](std::size_t color) mutable -> std::string {
+        // std::cout << "COLOR=" << color << " ";
+        return std::format("\x1b[38;5;{}m", color);
+    };
 
     for (const TestResult &tr : tests | std::views::filter([](const TestResult &t) { return !t.passed; }))
     {
+        std::vector<std::pair<std::size_t, SubString>> highlites;
+
+        for (std::size_t i = 0; i < tr.logs.size(); ++i)
+        {
+            auto result = std::visit(
+                [&i](auto &&arg) -> std::pair<std::size_t, SubString> {
+                    using T = std::decay_t<decltype(arg)>;
+                    if constexpr (std::is_same_v<T, AppRejection>)
+                        return {i, {arg.location, arg.end}};
+                    else if constexpr (std::is_same_v<T, AppFoundAnswer>)
+                        return {i, {arg.location, arg.end}};
+                    else
+                        return {0, {0, 0}};
+                },
+                tr.logs[i]);
+
+            if (result.second.start != 0 && result.second.end != 0)
+                highlites.push_back(result);
+        }
+
+        std::ranges::sort(highlites, [](auto const &l, auto const &r) { return l.second.start < r.second.start; });
+
+        for (auto &t : highlites)
+        {
+            std::cout << t.first << " " << t.second.start << "  " << t.second.end << '\n';
+        }
+
         std::cout << "------------------------------------" << '\n';
         std::cout << "Test failed: " << yellow << tr.def.mName << def << '\n';
         std::cout << "Program Output: \n" << green;
-        std::cout << tr.programOutput << def << '\n';
+
+        auto next = highlites.begin();
+        for (std::size_t i = 0; i < tr.programOutput.size(); ++i)
+        {
+            if (next != highlites.end())
+            {
+                if ((*next).second.start == i)
+                {
+                    // std::cout << "--BOLD COLOR--\n";
+                    std::cout << bold << make_color((std::distance(next, highlites.end()) + 1) * 2);
+                }
+
+                if ((*next).second.end == i)
+                {
+                    ++next;
+                    // std::cout << "--END BOLD COLOR--\n";
+                    std::cout << def << green;
+                }
+            }
+
+            std::cout << tr.programOutput[i];
+        }
+        // std::cout << tr.programOutput << def << '\n';
         std::cout << "Errors encountered: \n";
 
         int count = 1;
+
+        /*for( std::size_t i = 0; i < tr.logs.size(); ++i){
+            std::cout << def << count << ".  " << std::visit([](auto &t) -> std::string { return t; }, entry);
+        }*/
 
         for (const AppLogEntry &entry : tr.logs)
         {
