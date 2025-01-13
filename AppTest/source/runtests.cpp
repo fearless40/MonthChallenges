@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <commandline.hpp>
 #include <iostream>
 #include <numeric>
 #include <ranges>
@@ -15,6 +16,22 @@
 
 using namespace std::chrono_literals;
 
+namespace Term
+{
+const char *red = "\u001b[31m";
+const char *green = "\u001b[32m";
+const char *yellow = "\u001b[33m";
+const char *blue = "\u001b[34m";
+const char *def = "\u001b[0m";
+const char *bold = "\x1b[1m";
+
+std::string make_color(std::size_t color)
+{
+    return std::format("\x1b[38;5;{}m", color);
+}
+
+}; // namespace Term
+
 struct AppRejection
 {
     std::string rejectionText;
@@ -24,9 +41,10 @@ struct AppRejection
     {
         return as_string();
     }
-    std::string as_string() const noexcept
+    std::string as_string(const char *termColor = nullptr) const noexcept
     {
-        return std::format("Found rejection text [{}] at location [{}]'\n", rejectionText, location);
+        return std::format("Found rejection text [{}{}{}] at location [{}]'\n", termColor != nullptr ? termColor : "",
+                           rejectionText, Term::def, location);
     }
 };
 
@@ -37,7 +55,7 @@ struct AppMissingAnswer
     {
         return as_string();
     }
-    std::string as_string() const noexcept
+    std::string as_string(const char *termColor = nullptr) const noexcept
     {
         return std::format("Missing answer [{}] '\n", missingAnswer);
     }
@@ -52,9 +70,10 @@ struct AppFoundAnswer
     {
         return as_string();
     }
-    std::string as_string() const noexcept
+    std::string as_string(const char *termColor = nullptr) const noexcept
     {
-        return std::format("Found answer [{}] at location [{}]'\n", answer, location);
+        return std::format("Found answer text [{}{}{}] at location [{}]'\n", termColor != nullptr ? termColor : "",
+                           answer, Term::def, location);
     }
 };
 
@@ -66,7 +85,7 @@ struct AppTimeOut
         return as_string();
     }
 
-    std::string as_string() const noexcept
+    std::string as_string(const char *termColor = nullptr) const noexcept
     {
         return std::format("Application timed out after [{}] '\n", timeout);
     }
@@ -80,7 +99,7 @@ struct AppErrorCondition
         return as_string();
     }
 
-    std::string as_string() const noexcept
+    std::string as_string(const char *termColor = nullptr) const noexcept
     {
         return std::format("Error in running app with code [{}] with message [{}] '\n", ec.value(), ec.message());
     }
@@ -114,14 +133,16 @@ struct ExecuteResult
 
 ExecuteResult execute_app(const std::vector<std::string> &arguments)
 {
-    reproc::stop_actions stopActions{{reproc::stop::kill, 100ms}, {reproc::stop::terminate, 1000ms}, {}};
+    reproc::stop_actions stopActions{{reproc::stop::kill, 5000ms}, {reproc::stop::terminate, 10000ms}, {}};
 
     ExecuteResult exeResult;
 
-    std::string output;
     reproc::options options;
     options.stop = stopActions;
-    options.deadline = 100ms;
+
+    const auto &ProgramOpt = CommandLine::get_program_options();
+
+    options.deadline = reproc::milliseconds(ProgramOpt.runTimeOutMilliseconds);
     reproc::process process;
 
     std::error_code ec = process.start(arguments, options);
@@ -138,7 +159,8 @@ ExecuteResult execute_app(const std::vector<std::string> &arguments)
     ec = reproc::drain(process, sink, reproc::sink::null);
     if (ec == std::errc::timed_out)
     {
-        exeResult.logs.push_back(AppTimeOut{5000ms});
+
+        exeResult.logs.push_back(AppTimeOut{std::chrono::milliseconds(ProgramOpt.runTimeOutMilliseconds)});
         return exeResult;
     }
     else if (ec)
@@ -347,19 +369,6 @@ std::vector<TestResult> run_all_tests(Tests::Configuration &config, std::filesys
 void print_report(const std::vector<TestResult> &tests)
 {
     // Only print details on failed tests
-    const char *red = "\u001b[31m";
-    const char *green = "\u001b[32m";
-    const char *yellow = "\u001b[33m";
-    const char *blue = "\u001b[34m";
-    const char *def = "\u001b[0m";
-    const char *bold = "\x1b[1m";
-
-    // ESC[38;5;{ID}m
-
-    auto make_color = [](std::size_t color) mutable -> std::string {
-        // std::cout << "COLOR=" << color << " ";
-        return std::format("\x1b[38;5;{}m", color);
-    };
 
     for (const TestResult &tr : tests | std::views::filter([](const TestResult &t) { return !t.passed; }))
     {
@@ -385,14 +394,9 @@ void print_report(const std::vector<TestResult> &tests)
 
         std::ranges::sort(highlites, [](auto const &l, auto const &r) { return l.second.start < r.second.start; });
 
-        for (auto &t : highlites)
-        {
-            std::cout << t.first << " " << t.second.start << "  " << t.second.end << '\n';
-        }
-
         std::cout << "------------------------------------" << '\n';
-        std::cout << "Test failed: " << yellow << tr.def.mName << def << '\n';
-        std::cout << "Program Output: \n" << green;
+        std::cout << "Test failed: " << Term::yellow << tr.def.mName << Term::def << '\n';
+        std::cout << "Program Output: \n" << Term::green;
 
         auto next = highlites.begin();
         for (std::size_t i = 0; i < tr.programOutput.size(); ++i)
@@ -402,31 +406,33 @@ void print_report(const std::vector<TestResult> &tests)
                 if ((*next).second.start == i)
                 {
                     // std::cout << "--BOLD COLOR--\n";
-                    std::cout << bold << make_color((std::distance(next, highlites.end()) + 1) * 2);
+                    std::cout << Term::bold << Term::make_color((std::distance(next, highlites.end()) + 1) * 2);
                 }
 
                 if ((*next).second.end == i)
                 {
                     ++next;
                     // std::cout << "--END BOLD COLOR--\n";
-                    std::cout << def << green;
+                    std::cout << Term::def << Term::green;
                 }
             }
 
             std::cout << tr.programOutput[i];
         }
-        // std::cout << tr.programOutput << def << '\n';
+
+        std::cout << Term::def;
         std::cout << "Errors encountered: \n";
 
-        int count = 1;
-
-        /*for( std::size_t i = 0; i < tr.logs.size(); ++i){
-            std::cout << def << count << ".  " << std::visit([](auto &t) -> std::string { return t; }, entry);
-        }*/
+        int count = 0;
 
         for (const AppLogEntry &entry : tr.logs)
         {
-            std::cout << def << count << ".  " << std::visit([](auto &t) -> std::string { return t; }, entry);
+            std::cout << Term::def << ++count << ".  "
+                      << std::visit(
+                             [&count](auto &t) -> std::string {
+                                 return t.as_string(Term::make_color((count + 1) * 2).c_str());
+                             },
+                             entry);
         }
     }
 }

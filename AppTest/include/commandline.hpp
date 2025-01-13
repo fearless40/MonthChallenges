@@ -28,8 +28,11 @@ struct Options
     TestModes tests{TestModes::All};
     bool huge{false};
     bool overwrite{false};
+    int runTimeOutMilliseconds{500};
 };
 
 std::optional<Options> parse(int argc, char *argv[]);
+
+const Options &get_program_options();
 
 } // namespace CommandLine
