@@ -32,17 +32,17 @@ int16 : same as above
         -   --place [<<int:shipId>>:<<ColRow:location>>:<<char:orientation>>] ]
 - display <*path to file> print the file to screen nicely
 
-shipId = integer a ship of id 1 is 1 cell large. A ship of id 2 is 2 cells large. The same id cannot be specified more than once.
-ColRow = Excel like col row: B0, B1. Base 26 encoded col with A = 0; Row is integer base 10 encoding.
-Orientation = V for vertical or H for Horizontal. 
+- shipId = integer a ship of id 1 is 1 cell large. A ship of id 2 is 2 cells large. The same id cannot be specified more than once.
+- ColRow = Excel like col row: B0, B1. Base 26 encoded col with A = 0; Row is integer base 10 encoding.
+- Orientation = V for vertical or H for Horizontal. 
 
 ## Expected output
-Create mode
+### Create mode
 - If failure then print "ERROR: <with some error message>". 
 - If ships are invalid locations print: "Invalid <shipId> Intersection" or "Invalid <shipId> OffScreen"  
 - If no failure than print "DONE: <Your greeting...>" and output the file specified
 
-Verify mode
+### Verify mode
 - "Passed: <Your message>" if the file is valid.
 - "Failed: <Your message>" if the file is invalid.
 
