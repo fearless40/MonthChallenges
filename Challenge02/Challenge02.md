@@ -19,6 +19,23 @@ int16 : same as above
 ### Data (int16)
  - 0 indicates empty cell
  - greater than 0 indicates a ship of some sort. For instance 2 indicates a ship of size 2 is in a cel. That indicates that the next 2 should be adjacent:  above, below, left or right to the existing 2. 
+
+# Legal layout
+<pre>
+0 0 0 4 
+0 2 2 4
+0 0 0 4
+0 0 0 4
+</pre>
+
+# Illegal placement
+Ship 3 intersects with ship 2. 2 Ships cannot be ontop of each other. (No submarines) 
+<pre>
+0 0 3 4 
+0 2 2 4
+0 0 3 4
+0 0 0 4
+</pre>
   
 
 ## Command line options (must support these functions) 
