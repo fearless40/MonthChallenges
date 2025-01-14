@@ -198,7 +198,7 @@ std::optional<SubString> verify_whole_string(const std::string &output, const st
                                              std::size_t startingPos)
 {
     // looking for 3:  123 [bad]// 321 [bad]// 12,-3, [bad]// 1 2 3 [ok] // 1,2,3 [ok]//  (12)
-    const std::string_view allowedSeperators{", []();|\n\r\t\0"};
+    const std::string_view allowedSeperators{"=, []();|\n\r\t\0"};
     std::size_t startOfString = startingPos;
     std::size_t endOfString = startingPos + foundit.length();
 
