@@ -24,12 +24,12 @@ int16 : same as above
 ## Command line options must support these functions 
 - verify <*path to file*> :  load the given filename tells the program that the given file should be checked for errors (and exit)
 - create <*path to file*> : create a file 
-    > --row <int> : number of rows to create
-    > --col <int> : number of cols to create
-    > --ships <int : smallest ship size> <int : largest ship size> 
-    > --[player *player name* (all the next blocks repeat)
-        --random : have program generate random ships that do not intersect.  
-        --place [<int:shipId>:<ColRow:location>:<char:orientation>] ]
+    - --row <int> : number of rows to create
+    - --col <int> : number of cols to create
+    - --ships <int : smallest ship size> <int : largest ship size> 
+    - --[player *player name* (all the next blocks repeat)
+        -   --random : have program generate random ships that do not intersect.  
+        -   --place [<int:shipId>:<ColRow:location>:<char:orientation>] ]
 - display <*path to file> print the file to screen nicely
 
 shipId = integer a ship of id 1 is 1 cell large. A ship of id 2 is 2 cells large. The same id cannot be specified more than once.
