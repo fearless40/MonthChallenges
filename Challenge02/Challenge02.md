@@ -21,7 +21,7 @@ int16 : same as above
  - greater than 0 indicates a ship of some sort. For instance 2 indicates a ship of size 2 is in a cel. That indicates that the next 2 should be adjacent:  above, below, left or right to the existing 2. 
   
 
-## Command line options must support these functions 
+## Command line options (must support these functions) 
 - verify <*path to file*> :  load the given filename tells the program that the given file should be checked for errors (and exit)
 - create <*path to file*> : create a file 
     - --row <int> : number of rows to create
@@ -32,6 +32,7 @@ int16 : same as above
         -   --place [<<int:shipId>>:<<ColRow:location>>:<<char:orientation>>] ]
 - display <*path to file> print the file to screen nicely
 
+### Details
 - shipId = integer a ship of id 1 is 1 cell large. A ship of id 2 is 2 cells large. The same id cannot be specified more than once.
 - ColRow = Excel like col row: B0, B1. Base 26 encoded col with A = 0; Row is integer base 10 encoding.
 - Orientation = V for vertical or H for Horizontal. 
