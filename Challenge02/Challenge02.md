@@ -29,7 +29,7 @@ int16 : same as above
     - --ships <int : smallest ship size> <int : largest ship size> 
     - --[player *player name* (all the next blocks repeat)
         -   --random : have program generate random ships that do not intersect.  
-        -   --place [<int:shipId>:<ColRow:location>:<char:orientation>] ]
+        -   --place [<<int:shipId>>:<<ColRow:location>>:<<char:orientation>>] ]
 - display <*path to file> print the file to screen nicely
 
 shipId = integer a ship of id 1 is 1 cell large. A ship of id 2 is 2 cells large. The same id cannot be specified more than once.
