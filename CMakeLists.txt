@@ -8,7 +8,6 @@ if(EXISTS "${LOC_PATH}")
   message(FATAL_ERROR "You cannot build in a source directory (or any directory with a CMakeLists.txt file). Please make a build subdirectory. Feel free to remove CMakeCache.txt and CMakeFiles.")
 endif()
 
-
 project(ChallengeTests VERSION 1.0
         DESCRIPTION "Multiple small programs to run tests for each challenge."
         LANGUAGES CXX)
@@ -17,10 +16,14 @@ set_property(GLOBAL PROPERTY CMAKE_CXX_STANDARD  20)
 set_property(GLOBAL PROPERTY CMAKE_CXX_STANDARD_REQUIRED On)
 set_property(GLOBAL PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
-if (MSVC_VERSION GREATER_EQUAL "1900")
+add_subdirectory(external)
+
+set_property(GLOBAL PROPERTY CMAKE_EXPORT_COMPILE_COMMANDS On)
+
+if(MSVC_VERSION GREATER_EQUAL "1900")
   include(CheckCXXCompilerFlag)
-  CHECK_CXX_COMPILER_FLAG("/std:c++20" _cpp_20_flag_supported)
-  if (_cpp_20_flag_supported)
+  CHECK_CXX_COMPILER_FLAG(/std:c++20 _cpp_20_flag_supported)
+  if(_cpp_20_flag_supported)
     add_compile_options("/std:c++20")
   endif()
   add_compile_options("/MP")
@@ -28,5 +31,5 @@ else()
   add_compile_options(-std=c++20 -Wall -Werror -Wshadow -Wconversion -Wextra)
 endif()
 
-add_subdirectory(external)
 add_subdirectory(Challenge01)
+#add_subdirectory(Challenge03)

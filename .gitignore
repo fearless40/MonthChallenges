@@ -36,4 +36,5 @@
 # Folders
 build/*
 !build/FileEmptyOnPurpose.txt
+.vscode
 
