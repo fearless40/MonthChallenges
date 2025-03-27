@@ -1,5 +1,4 @@
-
-cmake_minimum_required(VERSION 3.2...3.8)
+cmake_minimum_required(VERSION 3.5...3.8)
 
 
 ### Require out-of-source builds
@@ -20,16 +19,6 @@ add_subdirectory(external)
 
 set_property(GLOBAL PROPERTY CMAKE_EXPORT_COMPILE_COMMANDS On)
 
-if(MSVC_VERSION GREATER_EQUAL "1900")
-  include(CheckCXXCompilerFlag)
-  CHECK_CXX_COMPILER_FLAG(/std:c++20 _cpp_20_flag_supported)
-  if(_cpp_20_flag_supported)
-    add_compile_options("/std:c++20")
-  endif()
-  add_compile_options("/MP")
-else()
-  add_compile_options(-std=c++20 -Wall -Werror -Wshadow -Wconversion -Wextra)
-endif()
 
 add_subdirectory(Challenge01)
-#add_subdirectory(Challenge03)
+add_subdirectory(Challenge03)

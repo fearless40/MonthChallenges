@@ -111,7 +111,7 @@ Definition::write_data_value(std::ostream &file,
 
   auto injectWhiteSpace = [&](std::size_t count = 1) {
     char ws = (bool_random() == true ? '\t' : ' ');
-    for (int i = 0; i < count; ++i)
+    for (std::size_t i = 0; i < count; ++i)
       file << ws;
   };
 
