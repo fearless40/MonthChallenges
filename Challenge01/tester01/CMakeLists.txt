@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.2...3.8)
-
 add_executable(test01
     source/main.cpp
     source/commandline.cpp
@@ -34,8 +32,9 @@ endif()
 
 target_include_directories(test01
   PUBLIC include
-  PRIVATE ${PROJECT_SOURCE_DIR}/external/clipp/include
-  PRIVATE ${PROJECT_SOURCE_DIR}/external/tomlplusplus/include
+  PRIVATE
+      ${PROJECT_SOURCE_DIR}/external/clipp/include
+      ${PROJECT_SOURCE_DIR}/external/tomlplusplus/include
 )
 
 

@@ -11,7 +11,7 @@ project(ChallengeTests VERSION 1.0
         DESCRIPTION "Multiple small programs to run tests for each challenge."
         LANGUAGES CXX)
 
-set_property(GLOBAL PROPERTY CMAKE_CXX_STANDARD  20)
+set_property(GLOBAL PROPERTY CMAKE_CXX_STANDARD  23)
 set_property(GLOBAL PROPERTY CMAKE_CXX_STANDARD_REQUIRED On)
 set_property(GLOBAL PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
