@@ -38,3 +38,4 @@ build/*
 !build/FileEmptyOnPurpose.txt
 .vscode
 .cache
+external
