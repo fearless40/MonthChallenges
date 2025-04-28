@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.3...4.0)
 
 add_executable(tester03
   src/main.cpp
+  src/commandline.cpp
+  src/runner.cpp
 )
 
 if(MSVC_VERSION GREATER_EQUAL "1900")
@@ -27,7 +29,7 @@ endif()
 target_include_directories(tester03 PUBLIC include)
 
 target_link_libraries(tester03
-  INTERFACE clipp
+  PRIVATE clipp
   PRIVATE reproc++
 )
 
