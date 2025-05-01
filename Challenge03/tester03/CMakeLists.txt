@@ -28,8 +28,11 @@ endif()
 
 target_include_directories(tester03 PUBLIC include)
 
+
+
 target_link_libraries(tester03
   PRIVATE clipp
   PRIVATE reproc++
+  PRIVATE challenges
 )
 

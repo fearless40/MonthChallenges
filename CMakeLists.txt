@@ -22,6 +22,8 @@ add_subdirectory(external)
 
 set_property(GLOBAL PROPERTY CMAKE_EXPORT_COMPILE_COMMANDS On)
 
+add_subdirectory(lib)
 
 add_subdirectory(Challenge01)
 add_subdirectory(Challenge03)
+
