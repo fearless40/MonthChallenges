@@ -33,6 +33,7 @@ ProgramOptions::Options parse(int argc, char *argv[]) {
         value("wait time", opt.wait_upto_millis) %
             "Amount of time in killingseconds to wait for an answer before "
             "killing the testing program. Default is 500 ms. "),
+       // (option("--ai") & value("ai id",
        (value("program", opt.program_to_test) %
         "Executable program to test that follows Challenge03 protocol."));
 
