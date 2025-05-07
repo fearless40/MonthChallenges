@@ -2,6 +2,7 @@
 #include "programoptions.hpp"
 #include "reproc++/reproc.hpp"
 #include "ship.hpp"
+#include <bitset>
 #include <charconv>
 #include <chrono>
 #include <cstddef>
@@ -131,9 +132,26 @@ void test_app(ProgramOptions::Options const &opt, AIID id,
       battleship::Row{static_cast<battleship::Row::type>(opt.rowSize)},
       battleship::Col{static_cast<battleship::Col::type>(opt.colSize)}};
 
+  struct ShipHits {
+    battleship::ShipDefinition id;
+    std::bitset<32> hits;
+
+    constexpr bool is_sunk() const { return hits.count() == id.size; }
+  };
+
+  std::vector<ShipHits> hits;
+
   // Generate random game
   battleship::Ships ships;
-  ships.generate_random_ships(layout);
+
+  if (auto opt_ships = random_ships(layout); opt_ships)
+    ships = opt_ships.value();
+
+  hits.reserve(ships.size());
+
+  for (auto &ship : ships) {
+    hits.emplace_back(ship.id(), std::bitset<32>());
+  }
 
   unsigned char buffer[128];
 
