@@ -113,6 +113,50 @@ get_requested_ai(ProgramOptions::Options const &opt) {
   return ai_ids;
 }
 
+struct ShipHit {
+  std::bitset<32> hits;
+
+  constexpr bool is_sunk(battleship::ShipDefinition id) const {
+    return hits.count() == id.size;
+  }
+};
+
+std::vector<ShipHits> constexpr make_hits_component(
+    battleship::Ships const &ships) {
+  std::vector<ShipHits> hits{ships.size()};
+  for (auto const &ship : ships) {
+    hits.emplace_back(std::bitset<32>{});
+  }
+  return hits;
+}
+class TestAI {
+private:
+  using ShipHits = std::vector<ShipHit>;
+
+  reproc::process app;
+  ShipHits hits;
+  battleship::Ships ships;
+  battleship::GameLayout layout;
+
+  void process_hit_logic(battleship::RowCol guess) {
+    if (auto ship_opt = battleship::ship_at_position(ships, guess); ship_opt) {
+      auto shipdef = ship_opt.value().id();
+
+      if (auto index_opt = layout.shipdef_to_index(shipdef), index_opt) {
+        auto index = index_opt.value();
+        if (auto section_opt = ships[index].ship_section_hit(guess), shipdef) {
+          hits_comp[index_opt.value()].set(section_opt.value(), true);
+          if (hits_comp[index_opt.value()].is_sunk(ship_opt.value())) {
+            sunk_ship(app, ship_opt.value());
+          } else {
+            hit_ship(app, ship_opt.value());
+          }
+        }
+      }
+    }
+  }
+};
+
 void test_app(ProgramOptions::Options const &opt, AIID id,
               std::size_t iterations) {
 
@@ -132,14 +176,7 @@ void test_app(ProgramOptions::Options const &opt, AIID id,
       battleship::Row{static_cast<battleship::Row::type>(opt.rowSize)},
       battleship::Col{static_cast<battleship::Col::type>(opt.colSize)}};
 
-  struct ShipHits {
-    battleship::ShipDefinition id;
-    std::bitset<32> hits;
-
-    constexpr bool is_sunk() const { return hits.count() == id.size; }
-  };
-
-  std::vector<ShipHits> hits;
+  ;
 
   // Generate random game
   battleship::Ships ships;
@@ -147,69 +184,72 @@ void test_app(ProgramOptions::Options const &opt, AIID id,
   if (auto opt_ships = random_ships(layout); opt_ships)
     ships = opt_ships.value();
 
-  hits.reserve(ships.size());
-
-  for (auto &ship : ships) {
-    hits.emplace_back(ship.id(), std::bitset<32>());
-  }
+  auto hits_comp = make_hits_component(ships);
 
   unsigned char buffer[128];
 
+  auto time = std::chrono::steady_clock::now();
   bool stillTesting = true;
   std::size_t byteRead{0};
   while (stillTesting) {
     std::tie(byteRead, ec) =
         app.read(reproc::stream::out, (unsigned char *)&buffer, 127);
     if (byteRead > 0) {
-      auto guess = battleship::RowCol::from_string(std::string_view{byteRead});
+      auto guess = battleship::RowCol::from_string(
+          std::string_view{(char *)&buffer, byteRead});
+
+      if (std::chrono::steady_clock::now() - time >
+          std::chrono::milliseconds{opt.wait_upto_millis}) {
+        stillTesting = false;
+      }
+    }
+  }
+
+  bool test(ProgramOptions::Options const &opt) {
+
+    auto ai_ids_opt = get_requested_ai(opt);
+    if (!ai_ids_opt)
+      return false;
+
+    auto ai_ids = ai_ids_opt.value();
+
+    reproc::process subapp;
+    reproc::options options{default_process_options()};
+    std::array<std::string, 4> cmdline{opt.program_to_test, "run", "--ai", "0"};
+
+    auto ec = subapp.start(cmdline, options);
+
+    if (ec == std::errc::no_such_file_or_directory) {
+      std::cout << "Program not found.\n";
+      return false;
     }
 
-    bool test(ProgramOptions::Options const &opt) {
+    unsigned char buffer[256];
 
-      auto ai_ids_opt = get_requested_ai(opt);
-      if (!ai_ids_opt)
-        return false;
-
-      auto ai_ids = ai_ids_opt.value();
-
-      reproc::process subapp;
-      reproc::options options{default_process_options()};
-      std::array<std::string, 4> cmdline{opt.program_to_test, "run", "--ai",
-                                         "0"};
-
-      auto ec = subapp.start(cmdline, options);
-
-      if (ec == std::errc::no_such_file_or_directory) {
-        std::cout << "Program not found.\n";
-        return false;
-      }
-
-      unsigned char buffer[256];
-
-      for (int i = 0; i < 5; ++i) {
-        std::size_t sz;
-        std::tie(sz, ec) =
-            subapp.read(reproc::stream::out, (unsigned char *)&buffer, 255);
-        stripn(buffer, sz);
-
-        subapp.write((unsigned char *)&"M\n", 2);
-      }
-
-      subapp.write((unsigned char *)&"Q\n", 2);
-
+    for (int i = 0; i < 5; ++i) {
       std::size_t sz;
       std::tie(sz, ec) =
           subapp.read(reproc::stream::out, (unsigned char *)&buffer, 255);
       stripn(buffer, sz);
 
-      options.stop.first = {reproc::stop::wait, reproc::milliseconds(10000)};
-
-      int status = 0;
-      std::tie(status, ec) = subapp.stop(options.stop);
-
-      if (ec) {
-        std::cout << "Error: " << ec.message() << '\n';
-      }
-
-      return true;
+      subapp.write((unsigned char *)&"M\n", 2);
     }
+
+    subapp.write((unsigned char *)&"Q\n", 2);
+
+    std::size_t sz;
+    std::tie(sz, ec) =
+        subapp.read(reproc::stream::out, (unsigned char *)&buffer, 255);
+    stripn(buffer, sz);
+
+    options.stop.first = {reproc::stop::wait, reproc::milliseconds(10000)};
+
+    int status = 0;
+    std::tie(status, ec) = subapp.stop(options.stop);
+
+    if (ec) {
+      std::cout << "Error: " << ec.message() << '\n';
+    }
+
+    return true;
+  }
