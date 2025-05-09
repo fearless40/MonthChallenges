@@ -1,6 +1,8 @@
 #include "runner.hpp"
+#include "aistats.hpp"
 #include "programoptions.hpp"
 #include "reproc++/reproc.hpp"
+#include "reprochelper.hpp"
 #include "ship.hpp"
 #include <bitset>
 #include <charconv>
@@ -11,35 +13,6 @@
 #include <optional>
 #include <system_error>
 
-using AIID = std::size_t;
-
-enum class AIStats_FinishingState {
-  WonGame,
-  TooManyGuess,
-  ErroredOut,
-  Unknown
-};
-
-struct AIStats_SingleRun {
-  std::chrono::milliseconds shortest_answer{0};
-  std::chrono::milliseconds longest_answer{0};
-  std::chrono::milliseconds avg_answer{0};
-  std::chrono::milliseconds total_time{0};
-
-  std::size_t repeat_guess_count{0};
-  std::size_t invalid_guess_count{0};
-
-  AIStats_FinishingState state{AIStats_FinishingState::Unknown};
-  AIID aiid;
-};
-
-struct AIRun {
-  // Game board
-  // Guess list
-  // Stats
-  //
-};
-
 void stripn(unsigned char *buff, std::size_t size) {
   for (std::size_t i = 0; i < size; ++i) {
     if (buff[i] != '\n')
@@ -48,19 +21,7 @@ void stripn(unsigned char *buff, std::size_t size) {
   std::cout << ',';
 }
 
-reproc::options default_process_options() {
-  reproc::options options;
-  reproc::stop_actions stop = {
-      {reproc::stop::noop, reproc::milliseconds(0)},
-      {reproc::stop::terminate, reproc::milliseconds(5000)},
-      {reproc::stop::kill, reproc::milliseconds(2000)}};
-
-  options.stop = stop;
-  options.redirect.out.type = reproc::redirect::pipe;
-  options.redirect.in.type = reproc::redirect::pipe;
-
-  return options;
-};
+;
 
 std::optional<std::size_t>
 get_ai_number_from_app(ProgramOptions::Options const &opt) {
@@ -113,100 +74,6 @@ get_requested_ai(ProgramOptions::Options const &opt) {
   }
   return ai_ids;
 }
-
-class TestAI {
-private:
-  struct ShipHit {
-    std::bitset<32> hits;
-
-    constexpr bool is_sunk(battleship::ShipDefinition id) const {
-      return hits.count() == id.size;
-    }
-  };
-  using ShipHits = std::vector<ShipHit>;
-
-  ProgramOptions::Options const &m_opt;
-  reproc::process m_app;
-  ShipHits m_hits;
-  battleship::Ships m_ships;
-  battleship::GameLayout m_layout;
-
-public:
-  TestAI(ProgramOptions::Options const &options) : m_opt(options) {
-    m_layout = {
-        battleship::ShipDefinition{m_opt.smallestShip},
-        battleship::ShipDefinition{m_opt.largestShip},
-        battleship::Row{static_cast<battleship::Row::type>(m_opt.rowSize)},
-        battleship::Col{static_cast<battleship::Col::type>(m_opt.colSize)}};
-    if (auto ship_op = battleship::random_ships(m_layout); ship_op) {
-      m_ships = ship_op.value();
-      m_hits = make_hits_component(m_ships);
-    }
-  }
-
-  void initalize_app() {
-
-    reproc::process app;
-    reproc::options options{default_process_options()};
-    std::array<std::string, 4> cmdline{m_opt.program_to_test, "run", "--ai",
-                                       "0"};
-
-    auto ec = app.start(cmdline, options);
-
-    if (ec == std::errc::no_such_file_or_directory) {
-      return;
-    }
-  }
-
-  void run_tests() {
-    unsigned char buffer[128];
-    auto time = std::chrono::steady_clock::now();
-    bool stillTesting = true;
-    std::size_t byteRead{0};
-    std::error_code ec;
-    while (stillTesting) {
-      std::tie(byteRead, ec) =
-          m_app.read(reproc::stream::out, (unsigned char *)&buffer, 127);
-      if (byteRead > 0) {
-        auto guess = battleship::RowCol::from_string(
-            std::string_view{(char *)&buffer, byteRead});
-        log_guess(guess);
-        process_hit_logic(guess);
-        if (std::chrono::steady_clock::now() - time >
-            std::chrono::milliseconds{m_opt.wait_upto_millis}) {
-          stillTesting = false;
-        }
-      }
-    }
-  }
-
-  void process_hit_logic(battleship::RowCol guess) {
-    if (auto ship_opt = battleship::ship_at_position(m_ships, guess);
-        ship_opt) {
-      auto shipdef = ship_opt.value().id();
-
-      auto index = m_layout.shipdef_to_index(shipdef);
-      if (auto section_opt = m_ships[index].ship_section_hit(guess);
-          section_opt) {
-        m_hits[index].hits.set(section_opt.value(), true);
-        if (m_hits[index].is_sunk(shipdef)) {
-          sunk_ship(m_app, shipdef);
-        } else {
-          hit_ship(m_app, shipdef);
-        }
-      }
-    }
-  }
-
-private:
-  ShipHits static make_hits_component(battleship::Ships const &ships) {
-    ShipHits hits{ships.size()};
-    for (auto const &ship : ships) {
-      hits.emplace_back(std::bitset<32>{});
-    }
-    return hits;
-  }
-};
 
 bool test(ProgramOptions::Options const &opt) {
 
