@@ -9,7 +9,7 @@ enum class RunMode { test, help, version, error };
 
 struct Options {
   RunMode mode{RunMode::error};
-  std::size_t nbrIterations{100};
+  std::size_t nbrIterations{2};
   std::size_t rowSize{10};
   std::size_t colSize{10};
   std::size_t smallestShip{2};

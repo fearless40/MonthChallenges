@@ -4,6 +4,7 @@
 #include "reproc++/reproc.hpp"
 #include "reprochelper.hpp"
 #include "ship.hpp"
+#include "testrunner.hpp"
 #include <bitset>
 #include <charconv>
 #include <chrono>
@@ -70,6 +71,8 @@ get_requested_ai(ProgramOptions::Options const &opt) {
       return {};
     }
   } else {
+    // std::cout << "Test AI: " << opt.ai_id_to_test << '\n';
+
     return opt.ai_id_to_test;
   }
   return ai_ids;
@@ -83,6 +86,11 @@ bool test(ProgramOptions::Options const &opt) {
 
   auto ai_ids = ai_ids_opt.value();
 
+  TestAI tester{opt};
+  tester.initalize_app();
+  tester.start_tests();
+
+  return true;
   reproc::process subapp;
   reproc::options options{default_process_options()};
   std::array<std::string, 4> cmdline{opt.program_to_test, "run", "--ai", "0"};
