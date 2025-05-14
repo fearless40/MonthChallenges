@@ -15,6 +15,7 @@ The goal of this challenge is to write an "ai" player to play against. The new p
 
 ## Expected input and output
 - Your program will write to the standard output stream (cout in c++, puts in c, whatever other language you choose to use) with its guess. The format of the guess is excel style base 26 guess. However A = 0. So B = 1. C = 2. For example Row 0, Col 0, is A0. Row 1, Col 1 is B1.
+- If your program has no more guesses write '-\n' 
 - In return the testing program will write the answer as follows "{Status Code}?{Ship ID}"
 - The number of characters returned will always be the largest amount of digits to represent ship size plus 1 for the status.
 - The last characters will be a newline character
