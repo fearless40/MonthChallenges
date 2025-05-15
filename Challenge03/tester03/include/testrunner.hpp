@@ -76,8 +76,9 @@ public:
   void initalize_app() {
 
     reproc::options options{default_process_options()};
-    std::array<std::string, 4> cmdline{m_opt.program_to_test, "run", "--ai",
-                                       "0"};
+    std::array<std::string, 4> cmdline{
+        m_opt.program_to_test, "run", "--ai",
+        std::to_string(m_opt.ai_id_to_test.front())};
 
     auto ec = m_app.start(cmdline, options);
 
