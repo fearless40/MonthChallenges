@@ -98,14 +98,6 @@ public:
   };
 
 private:
-  ShipHits static make_hits_component(battleship::Ships const &ships) {
-    ShipHits hits{ships.size()};
-    for (auto const &ship : ships) {
-      hits.emplace_back(std::bitset<32>{});
-    }
-    return hits;
-  }
-
   void begin_test() {
     // Initlize m_current
     std::cout << "Begin Tests\n";
