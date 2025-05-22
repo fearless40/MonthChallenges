@@ -38,7 +38,7 @@ public:
   };
 
   struct VirtualStats {
-    TimeT shortest_answer{0};
+    TimeT shortest_answer{9999999};
     TimeT longest_answer{0};
     TimeT avg_answer{0};
     TimeT total_time{0};
@@ -55,7 +55,7 @@ public:
   };
 
   struct Game {
-    std::chrono::steady_clock::time_point start_time;
+    std::chrono::high_resolution_clock::time_point start_time;
     battleship::Ships ships;
     ShipHits hits;
     std::vector<Guess_Stats> guesses;
@@ -70,12 +70,10 @@ public:
       : program_name(program), id(ai), m_layout(layout) {};
 
   void new_game();
-  void end_game();
+  void end_game(EndingState state);
   void start_guess_timer();
-  void fail_game(EndingState state);
   void finish_games();
   GuessResult guess(const battleship::RowCol guess);
-  void guess_program_has_no_more_guess();
 
   // Getters
   constexpr std::size_t get_current_guess_count() {
@@ -92,6 +90,8 @@ private:
     return hits;
   }
 
+  void calculate_stats(Game &g);
+
   // Private Data
 private:
   AIID id;
@@ -99,6 +99,7 @@ private:
   battleship::GameLayout m_layout;
 
   Game m_current;
+  VirtualStats m_global;
   std::vector<Game> m_games;
   std::chrono::high_resolution_clock::time_point m_guess_time;
 };
