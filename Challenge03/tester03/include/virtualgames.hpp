@@ -8,6 +8,7 @@ class VirtualGames {
   // Types used
 public:
   using TimeT = std::chrono::microseconds;
+  using ClockT = std::chrono::high_resolution_clock;
 
   struct ShipHit {
     std::bitset<32> hits;
@@ -46,6 +47,7 @@ public:
     std::size_t repeat_guess_count{0};
     std::size_t invalid_guess_count{0};
     std::size_t average_guess_count{0};
+      std::size_t total_guess_count{0};
   };
   ;
 

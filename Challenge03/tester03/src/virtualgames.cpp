@@ -36,6 +36,7 @@ void VirtualGames::calculate_stats(Game &g) {
     g.stats.avg_answer = (g.stats.avg_answer + guess.elapsed_time) / 2;
     g.stats.total_time += guess.elapsed_time;
   }
+  g.stats.total_guess_count = g.guesses.size();
 
   m_global.shortest_answer =
       std::min(m_global.shortest_answer, g.stats.shortest_answer);
