@@ -84,7 +84,7 @@ bool test(ProgramOptions::Options const &opt) {
   if (!ai_ids_opt)
     return false;
 
-  auto ai_ids = ai_ids_opt.value();
+  auto &ai_ids = ai_ids_opt.value();
 
   TestAI tester{opt};
   tester.initalize_app();

@@ -1,5 +1,7 @@
 #include "virtualgames.hpp"
+#include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <stdexcept>
 
 void VirtualGames::new_game() {
@@ -85,4 +87,22 @@ VirtualGames::GuessResult VirtualGames::guess(const battleship::RowCol guess) {
     }
   }
   return {GuessReport::Miss};
+}
+
+VirtualGames::ShipHits
+VirtualGames::make_hits_component(battleship::Ships const &ships) {
+  ShipHits hits;
+  hits.reserve(ships.size());
+  battleship::ShipDefinition sid = m_layout.minShipSize;
+  for (auto const &ship : ships) {
+    hits.emplace_back(std::bitset<32>{}, sid);
+    ++sid.size;
+  }
+  return hits;
+}
+
+bool VirtualGames::sunk_all_ships() {
+  auto all_sunk = std::ranges::all_of(m_currrent.hits,
+                                      [](auto &hit) { return hit.is_sunk(); });
+  return all_sunk;
 }

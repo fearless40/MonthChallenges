@@ -12,10 +12,8 @@ public:
 
   struct ShipHit {
     std::bitset<32> hits;
-
-    constexpr bool is_sunk(battleship::ShipDefinition id) const {
-      return hits.count() == id.size;
-    }
+    battleship::ShipDefinition id;
+    constexpr bool is_sunk() const { return hits.count() == id.size; }
   };
 
   using ShipHits = std::vector<ShipHit>;
@@ -47,7 +45,7 @@ public:
     std::size_t repeat_guess_count{0};
     std::size_t invalid_guess_count{0};
     std::size_t average_guess_count{0};
-      std::size_t total_guess_count{0};
+    std::size_t total_guess_count{0};
   };
   ;
 
@@ -68,7 +66,8 @@ public:
   // Public methods
 public:
   VirtualGames() {};
-  VirtualGames(std::string program, AIID ai, battleship::GameLayout layout)
+  explicit VirtualGames(std::string program, AIID ai,
+                        battleship::GameLayout layout)
       : program_name(program), id(ai), m_layout(layout) {};
 
   void new_game();
@@ -82,16 +81,14 @@ public:
     return m_current.guesses.size();
   }
 
-  // Private Methods
-private:
-  ShipHits static make_hits_component(battleship::Ships const &ships) {
-    ShipHits hits{ships.size()};
-    for (auto const &ship : ships) {
-      hits.emplace_back(std::bitset<32>{});
-    }
-    return hits;
+  constexpr std::size_t max_guesses() const noexcept {
+    return (m_layout.nbrRows.size * m_layout.nbrCols.size) + 10;
   }
 
+  bool sunk_all_ships() const;
+
+  // Private Methods
+private:
   void calculate_stats(Game &g);
 
   // Private Data
