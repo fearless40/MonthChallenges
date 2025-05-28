@@ -3,15 +3,14 @@
 #include "programoptions.hpp"
 #include "reproc++/reproc.hpp"
 #include "reprochelper.hpp"
-#include "ship.hpp"
 #include "testrunner.hpp"
-#include <bitset>
+#include "virtualgames.hpp"
 #include <charconv>
-#include <chrono>
 #include <cstddef>
 #include <iostream>
 #include <numeric>
 #include <optional>
+#include <ostream>
 #include <system_error>
 
 void stripn(unsigned char *buff, std::size_t size) {
@@ -72,62 +71,63 @@ get_requested_ai(ProgramOptions::Options const &opt) {
     }
   } else {
     // std::cout << "Test AI: " << opt.ai_id_to_test << '\n';
-
+    std::cout << "Total number of ais: " << opt.ai_id_to_test.size() << '\n';
     return opt.ai_id_to_test;
   }
-  return ai_ids;
+  return {};
 }
 
+void output_report(std::ostream &s, const VirtualGames &game);
 bool test(ProgramOptions::Options const &opt) {
 
   auto ai_ids_opt = get_requested_ai(opt);
+
   if (!ai_ids_opt)
     return false;
 
   auto &ai_ids = ai_ids_opt.value();
 
-  TestAI tester{opt};
-  tester.initalize_app();
-  tester.start_tests();
+  TestRunner tester{opt, ai_ids.front()};
+  tester.start_tests(opt.nbrIterations);
 
-  return true;
-  reproc::process subapp;
-  reproc::options options{default_process_options()};
-  std::array<std::string, 4> cmdline{opt.program_to_test, "run", "--ai", "0"};
-
-  auto ec = subapp.start(cmdline, options);
-
-  if (ec == std::errc::no_such_file_or_directory) {
-    std::cout << "Program not found.\n";
-    return false;
-  }
-
-  unsigned char buffer[256];
-
-  for (int i = 0; i < 5; ++i) {
-    std::size_t sz;
-    std::tie(sz, ec) =
-        subapp.read(reproc::stream::out, (unsigned char *)&buffer, 255);
-    stripn(buffer, sz);
-
-    subapp.write((unsigned char *)&"M\n", 2);
-  }
-
-  subapp.write((unsigned char *)&"Q\n", 2);
-
-  std::size_t sz;
-  std::tie(sz, ec) =
-      subapp.read(reproc::stream::out, (unsigned char *)&buffer, 255);
-  stripn(buffer, sz);
-
-  options.stop.first = {reproc::stop::wait, reproc::milliseconds(10000)};
-
-  int status = 0;
-  std::tie(status, ec) = subapp.stop(options.stop);
-
-  if (ec) {
-    std::cout << "Error: " << ec.message() << '\n';
+  if (opt.result_file != "") {
+    output_report(std::cout, tester.games());
   }
 
   return true;
 }
+
+void output_report(std::ostream &s, const VirtualGames &games) {
+  const char *header = "====================================================\n";
+  const char e = '\n';
+
+  s << "Testing Results\n" << header;
+  s << "Program: " << games.program_name() << e;
+  s << "AI ID: " << games.aiid() << e;
+  s << e;
+  s << "Total time: " << games.global_stats().total_time << e;
+  s << "Invalid Guesses: " << games.global_stats().invalid_guess_count << e;
+  s << "Average guess per game: " << games.global_stats().average_guess_count
+    << e;
+  s << e;
+  s << "Repeat Guesses: " << games.global_stats().repeat_guess_count << e;
+  s << "Shortest Answer: " << games.global_stats().shortest_answer << e;
+  s << "Longest Answer: " << games.global_stats().longest_answer << e;
+  s << "Average Answer:" << games.global_stats().avg_answer << e;
+
+  std::size_t game_count = 0;
+  for (auto const &game : games.all_games()) {
+    s << e << header << e;
+    s << "Game Number: " << ++game_count << e;
+    s << e;
+    s << "Total time: " << game.stats.total_time << e;
+    s << "Total Guesses: " << game.stats.total_guess_count << e;
+    s << "Invalid Guesses: " << game.stats.invalid_guess_count << e;
+    s << "Average guess per game: " << game.stats.average_guess_count << e;
+    s << e;
+    s << "Repeat Guesses: " << game.stats.repeat_guess_count << e;
+    s << "Shortest Answer: " << game.stats.shortest_answer << e;
+    s << "Longest Answer: " << game.stats.longest_answer << e;
+    s << "Average Answer:" << game.stats.avg_answer << e;
+  }
+};

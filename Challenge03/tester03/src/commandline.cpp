@@ -27,13 +27,13 @@ ProgramOptions::Options parse(int argc, char *argv[]) {
         value(opt.result_file) %
             "Write results to a file. Default is results.txt"),
        (option("--layout") &
-        value(opt.ship_layout_file) %
+        value("layout file", opt.ship_layout_file) %
             "Load a layout file to test non random ship placements"),
        (option("--wait") &
         value("wait time", opt.wait_upto_millis) %
             "Amount of time in killingseconds to wait for an answer before "
             "killing the testing program. Default is 500 ms. "),
-       // (option("--ai") & value("ai id",
+       repeatable((option("--ai") & value("ai id", opt.ai_id_to_test))),
        (value("program", opt.program_to_test) %
         "Executable program to test that follows Challenge03 protocol."));
 
@@ -52,6 +52,11 @@ ProgramOptions::Options parse(int argc, char *argv[]) {
   if (opt.mode == ProgramOptions::RunMode::help) {
     std::cout << clipp::make_man_page(cli, "tester03") << '\n';
   }
+
+  if (opt.ai_id_to_test.size() > 0)
+    opt.all_ai = false;
+  else
+    opt.all_ai = true;
 
   return opt;
 }

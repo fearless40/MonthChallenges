@@ -68,7 +68,7 @@ public:
   VirtualGames() {};
   explicit VirtualGames(std::string program, AIID ai,
                         battleship::GameLayout layout)
-      : program_name(program), id(ai), m_layout(layout) {};
+      : m_program_name(program), m_id(ai), m_layout(layout) {};
 
   void new_game();
   void end_game(EndingState state);
@@ -87,14 +87,19 @@ public:
 
   bool sunk_all_ships() const;
 
+  constexpr AIID aiid() const { return m_id; }
+  constexpr std::string program_name() const { return m_program_name; }
+  constexpr const VirtualStats &global_stats() const { return m_global; }
+  constexpr const std::vector<Game> &all_games() const { return m_games; }
   // Private Methods
 private:
   void calculate_stats(Game &g);
+  VirtualGames::ShipHits make_hits_component(battleship::Ships const &ships);
 
   // Private Data
 private:
-  AIID id;
-  std::string program_name{};
+  AIID m_id;
+  std::string m_program_name{};
   battleship::GameLayout m_layout;
 
   Game m_current;

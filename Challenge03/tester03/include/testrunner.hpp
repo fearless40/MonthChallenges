@@ -1,46 +1,42 @@
 #pragma once
 
-#include "Array2D.hpp"
 #include "aistats.hpp"
 #include "programoptions.hpp"
 #include "reproc++/reproc.hpp"
 #include "reprochelper.hpp"
-#include "ship.hpp"
 #include "virtualgames.hpp"
-#include <algorithm>
-#include <bitset>
-#include <chrono>
 #include <cstddef>
 #include <iostream>
-#include <iterator>
-#include <numeric>
 #include <system_error>
 
-class TestAI {
+class TestRunner {
   VirtualGames m_game;
   reproc::process m_app;
-  std::string program;
-  AIID m_id;
+  reproc::milliseconds m_timeout;
 
 public:
-  TestAI(ProgramOptions::Options const &options) : m_opt(options) {
-    m_layout = {
-        battleship::ShipDefinition{m_opt.smallestShip},
-        battleship::ShipDefinition{m_opt.largestShip},
-        battleship::Row{static_cast<battleship::Row::type>(m_opt.rowSize)},
-        battleship::Col{static_cast<battleship::Col::type>(m_opt.colSize)}};
+  TestRunner(ProgramOptions::Options const &options, AIID aiid)
+      : m_timeout(options.wait_upto_millis) {
+    m_game = VirtualGames(
+        options.program_to_test, aiid,
+        {battleship::ShipDefinition{options.smallestShip},
+         battleship::ShipDefinition{options.largestShip},
+         battleship::Row{static_cast<battleship::Row::type>(options.rowSize)},
+         battleship::Col{static_cast<battleship::Col::type>(options.colSize)}});
   }
 
-  void start_tests(std::string program, AIID id, std::size_t nbrIterations,
-                   battleship::GameLayout layout) {
-    if (!initalize_app(program, id))
+  void start_tests(std::size_t nbrIterations) {
+    if (!initalize_app(m_game.program_name(), m_game.aiid()))
       return;
-    m_game = VirtualGames(program, id, layout);
     for (std::size_t test_nbr = 0; test_nbr < nbrIterations; ++test_nbr) {
       begin_test();
       run_test();
     }
+
+    send_quit();
   };
+
+  const VirtualGames &games() const { return m_game; }
 
 private:
   bool initalize_app(std::string program, AIID id) {
@@ -52,16 +48,14 @@ private:
     auto ec = m_app.start(cmdline, options);
 
     if (ec == std::errc::no_such_file_or_directory) {
-      std::cout << "No such program\n";
+      // std::cout << "No such program\n";
       return false;
     } else if (ec) {
-      std::cout << "Error: " << ec.message() << '\n';
+      // std::cout << "Error: " << ec.message() << '\n';
       return false;
     }
     return true;
   }
-
-  void begin_test() { m_game.new_game(); }
 
   // void end_test() {
   //   m_game.end_game(VirtualGames::EndingState::sunk_all_ships);
@@ -76,6 +70,11 @@ private:
 
     if (byteRead > 0 && !ec) {
       std::string_view recieved_text{(char *)buffer, byteRead};
+
+      if (buffer[0] == '-') {
+        m_game.end_game(VirtualGames::EndingState::program_has_no_guesses);
+        return true;
+      }
 
       auto guess = battleship::RowCol::from_string(recieved_text);
       auto result = m_game.guess(guess);
@@ -100,46 +99,66 @@ private:
     const std::size_t MAX_COUNT = m_game.max_guesses();
 
     while (1) {
-      auto event = m_app.poll(reproc::event::out | reproc::event::deadline,
-                              reproc::milliseconds(m_opt.wait_upto_millis));
+      auto event =
+          m_app.poll(reproc::event::out | reproc::event::deadline, m_timeout);
       if (event.first == reproc::event::deadline) {
         m_game.end_game(VirtualGames::EndingState::timeout);
+        std::cout << "Timeout\n";
         return;
       } else if (event.second.value() != 0) {
 
+        std::cout << "other\n";
         m_game.end_game(VirtualGames::EndingState::other);
         return;
       } else if (event.first == 0) {
+        std::cout << "Timeout\n";
         m_game.end_game(VirtualGames::EndingState::timeout);
         return;
       }
       if (!read_app()) {
+        std::cout << "cannot read output\n";
         m_game.end_game(VirtualGames::EndingState::unable_read_output);
         return;
       }
       if (++count > MAX_COUNT) {
+        std::cout << "max count\n";
         m_game.end_game(VirtualGames::EndingState::too_many_guess);
         return;
       }
+      if (m_game.sunk_all_ships()) {
+        std::cout << "Sunk all shipts\n";
+        m_game.end_game(VirtualGames::EndingState::sunk_all_ships);
+        return;
+      }
     }
+  }
+  void begin_test() {
+    m_app.write((unsigned char *)"E\n", 2);
+    m_game.new_game();
   }
 
   void sunk_ship(battleship::ShipDefinition const shipdef) {
     std::cout << "Sunk ship: " << shipdef.size << '\n';
     std::string buf = std::format("S{}\n", shipdef.size);
     m_app.write((unsigned char *)buf.c_str(), buf.length());
+    m_game.start_guess_timer();
   }
 
   void hit_ship(battleship::ShipDefinition const shipdef) {
-    // std::cout << "Hit ship: " << shipdef.size << '\n';
+    std::cout << "Hit ship: " << shipdef.size << '\n';
     m_app.write((unsigned char *)"H\n", 2);
+    m_game.start_guess_timer();
   }
 
   void miss_ship() {
-    // std::cout << "Miss\n";
+    std::cout << "Miss\n";
     m_app.write((unsigned char *)"M\n", 2);
+    m_game.start_guess_timer();
   }
-
+  void send_quit() {
+    std::cout << "Miss\n";
+    m_app.write((unsigned char *)"Q\n", 2);
+  }
   //   void print_stats(SingleRun const &run) {
   //     auto &p = std::cout;
   //     p << "Stats for run: \n" << "-------------------------------------\n";

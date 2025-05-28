@@ -4,7 +4,7 @@ add_executable(tester03
   src/main.cpp
   src/commandline.cpp
   src/runner.cpp
-  src/virtualgame.cpp
+  src/virtualgames.cpp
 )
 
 if(MSVC_VERSION GREATER_EQUAL "1900")

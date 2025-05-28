@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <iostream>
 #include <stdexcept>
 
 void VirtualGames::new_game() {
@@ -13,10 +14,16 @@ void VirtualGames::new_game() {
     std::size_t reserve = m_layout.nbrRows.size * m_layout.nbrCols.size + 10;
     m_current.guesses.reserve(reserve);
   }
+  m_current.start_time = VirtualGames::ClockT::now();
+  if (auto ships = battleship::random_ships(m_layout); ships) {
+    m_current.ships = ships.value();
+    m_current.hits = make_hits_component(m_current.ships);
+  }
+  m_current.ending_state = EndingState::none;
 }
 
 void VirtualGames::start_guess_timer() {
-  m_guess_time = std::chrono::high_resolution_clock::now();
+  m_guess_time = VirtualGames::ClockT::now();
 }
 
 void VirtualGames::end_game(VirtualGames::EndingState state) {
@@ -34,7 +41,7 @@ void VirtualGames::calculate_stats(Game &g) {
     g.stats.shortest_answer =
         std::min(g.stats.shortest_answer, guess.elapsed_time);
     g.stats.longest_answer =
-        std::min(g.stats.longest_answer, guess.elapsed_time);
+        std::max(g.stats.longest_answer, guess.elapsed_time);
     g.stats.avg_answer = (g.stats.avg_answer + guess.elapsed_time) / 2;
     g.stats.total_time += guess.elapsed_time;
   }
@@ -55,7 +62,7 @@ void VirtualGames::calculate_stats(Game &g) {
 };
 
 VirtualGames::GuessResult VirtualGames::guess(const battleship::RowCol guess) {
-  auto elapsed_time = std::chrono::high_resolution_clock::now() - m_guess_time;
+  auto elapsed_time = VirtualGames::ClockT::now() - m_guess_time;
   m_current.guesses.emplace_back(
       guess, std::chrono::duration_cast<VirtualGames::TimeT>(elapsed_time));
 
@@ -79,7 +86,7 @@ VirtualGames::GuessResult VirtualGames::guess(const battleship::RowCol guess) {
     if (auto section_opt = m_current.ships[index].ship_section_hit(guess);
         section_opt) {
       m_current.hits[index].hits.set(section_opt.value(), true);
-      if (m_current.hits[index].is_sunk(shipdef)) {
+      if (m_current.hits[index].is_sunk()) {
         return {GuessReport::Sink, shipdef};
       } else {
         return {GuessReport::Hit, shipdef};
@@ -101,8 +108,11 @@ VirtualGames::make_hits_component(battleship::Ships const &ships) {
   return hits;
 }
 
-bool VirtualGames::sunk_all_ships() {
-  auto all_sunk = std::ranges::all_of(m_currrent.hits,
-                                      [](auto &hit) { return hit.is_sunk(); });
-  return all_sunk;
+bool VirtualGames::sunk_all_ships() const {
+  for (auto &h : m_current.hits) {
+    std::cout << h.id.size << " " << h.is_sunk() << '\n';
+  }
+  return std::ranges::all_of(m_current.hits,
+
+                             [](auto &hit) { return hit.is_sunk(); });
 }
