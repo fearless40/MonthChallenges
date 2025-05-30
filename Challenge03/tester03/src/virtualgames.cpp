@@ -3,10 +3,12 @@
 #include <chrono>
 #include <cstddef>
 #include <iostream>
-#include <stdexcept>
 
 void VirtualGames::new_game() {
   // Get the last number of guess from last run
+
+  m_current.guesses.clear();
+
   if (m_games.size() > 0) {
     std::size_t reserve = m_games.back().guesses.size();
     m_current.guesses.reserve(reserve);
@@ -14,12 +16,15 @@ void VirtualGames::new_game() {
     std::size_t reserve = m_layout.nbrRows.size * m_layout.nbrCols.size + 10;
     m_current.guesses.reserve(reserve);
   }
+  m_current.stats = VirtualGames::VirtualStats{};
   m_current.start_time = VirtualGames::ClockT::now();
   if (auto ships = battleship::random_ships(m_layout); ships) {
     m_current.ships = ships.value();
     m_current.hits = make_hits_component(m_current.ships);
   }
   m_current.ending_state = EndingState::none;
+
+  start_guess_timer();
 }
 
 void VirtualGames::start_guess_timer() {
@@ -52,9 +57,15 @@ void VirtualGames::calculate_stats(Game &g) {
   m_global.longest_answer =
       std::max(m_global.longest_answer, g.stats.longest_answer);
   m_global.total_time += g.stats.total_time;
-  m_global.average_guess_count =
-      (m_global.average_guess_count + g.stats.average_guess_count) / 2;
+
+  if (m_global.average_guess_count == 0) {
+    m_global.average_guess_count = g.guesses.size();
+  } else {
+    m_global.average_guess_count =
+        (m_global.average_guess_count + g.guesses.size()) / 2;
+  }
   m_global.invalid_guess_count =
+
       (m_global.invalid_guess_count + g.stats.invalid_guess_count) / 2;
   m_global.repeat_guess_count =
       (m_global.repeat_guess_count + g.stats.repeat_guess_count) / 2;
@@ -72,9 +83,10 @@ VirtualGames::GuessResult VirtualGames::guess(const battleship::RowCol guess) {
 
   // Find repeats. Can be slow with large numbers of guesses. For modern
   // computers should be no problem
-  if (auto exists =
-          std::ranges::find(m_current.guesses, guess, &Guess_Stats::guess);
-      exists != m_current.guesses.end())
+  if (auto exists = std::ranges::find(m_current.guesses.begin(),
+                                      m_current.guesses.end() - 1, guess,
+                                      &Guess_Stats::guess);
+      exists != m_current.guesses.end() - 1)
     ++m_current.stats.repeat_guess_count;
 
   if (auto ship_opt = battleship::ship_at_position(m_current.ships, guess);
@@ -109,9 +121,9 @@ VirtualGames::make_hits_component(battleship::Ships const &ships) {
 }
 
 bool VirtualGames::sunk_all_ships() const {
-  for (auto &h : m_current.hits) {
-    std::cout << h.id.size << " " << h.is_sunk() << '\n';
-  }
+  // for (auto &h : m_current.hits) {
+  //   std::cout << h.id.size << " " << h.is_sunk() << '\n';
+  // }
   return std::ranges::all_of(m_current.hits,
 
                              [](auto &hit) { return hit.is_sunk(); });

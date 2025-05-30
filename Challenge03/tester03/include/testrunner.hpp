@@ -94,7 +94,7 @@ private:
   }
 
   void run_test() {
-    std::cout << "Run Tests\n";
+    // std::cout << "Run Tests\n";
     std::size_t count{0};
     const std::size_t MAX_COUNT = m_game.max_guesses();
 
@@ -103,30 +103,30 @@ private:
           m_app.poll(reproc::event::out | reproc::event::deadline, m_timeout);
       if (event.first == reproc::event::deadline) {
         m_game.end_game(VirtualGames::EndingState::timeout);
-        std::cout << "Timeout\n";
+        // std::cout << "Timeout\n";
         return;
       } else if (event.second.value() != 0) {
 
-        std::cout << "other\n";
+        // std::cout << "other\n";
         m_game.end_game(VirtualGames::EndingState::other);
         return;
       } else if (event.first == 0) {
-        std::cout << "Timeout\n";
+        // std::cout << "Timeout\n";
         m_game.end_game(VirtualGames::EndingState::timeout);
         return;
       }
       if (!read_app()) {
-        std::cout << "cannot read output\n";
+        // std::cout << "cannot read output\n";
         m_game.end_game(VirtualGames::EndingState::unable_read_output);
         return;
       }
       if (++count > MAX_COUNT) {
-        std::cout << "max count\n";
+        // std::cout << "max count\n";
         m_game.end_game(VirtualGames::EndingState::too_many_guess);
         return;
       }
       if (m_game.sunk_all_ships()) {
-        std::cout << "Sunk all shipts\n";
+        // std::cout << "Sunk all shipts\n";
         m_game.end_game(VirtualGames::EndingState::sunk_all_ships);
         return;
       }
@@ -135,32 +135,33 @@ private:
   void begin_test() {
     m_app.write((unsigned char *)"E\n", 2);
     m_game.new_game();
+    m_game.start_guess_timer();
   }
 
   void sunk_ship(battleship::ShipDefinition const shipdef) {
-    std::cout << "Sunk ship: " << shipdef.size << '\n';
+    // std::cout << "Sunk ship: " << shipdef.size << '\n';
     std::string buf = std::format("S{}\n", shipdef.size);
     m_app.write((unsigned char *)buf.c_str(), buf.length());
     m_game.start_guess_timer();
   }
 
   void hit_ship(battleship::ShipDefinition const shipdef) {
-    std::cout << "Hit ship: " << shipdef.size << '\n';
+    // std::cout << "Hit ship: " << shipdef.size << '\n';
     m_app.write((unsigned char *)"H\n", 2);
     m_game.start_guess_timer();
   }
 
   void miss_ship() {
-    std::cout << "Miss\n";
+    // std::cout << "Miss\n";
     m_app.write((unsigned char *)"M\n", 2);
     m_game.start_guess_timer();
   }
   void send_quit() {
-    std::cout << "Miss\n";
+    // std::cout << "Miss\n";
     m_app.write((unsigned char *)"Q\n", 2);
   }
   //   void print_stats(SingleRun const &run) {
-  //     auto &p = std::cout;
+  // auto &p = std::cout;
   //     p << "Stats for run: \n" << "-------------------------------------\n";
   //     p << "Total guesses: " << run.guesses.size() << '\n';
   //     p << "Shortest Guess: " << run.total_stats.shortest_answer << "\n";
