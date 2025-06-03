@@ -5,16 +5,26 @@
 #include "reproc++/reproc.hpp"
 #include "reprochelper.hpp"
 #include "virtualgames.hpp"
+#include <atomic>
 #include <cstddef>
 #include <iostream>
 #include <system_error>
 
+/***
+ * @description Runs a set of tests on a program and keeps track of position
+ * atomically
+ *
+ * */
+
 class TestRunner {
   VirtualGames m_game;
   reproc::process m_app;
-  reproc::milliseconds m_timeout;
+  reproc::milliseconds m_timeout{500};
+  std::atomic<std::size_t> m_round{0};
+  std::atomic<bool> m_completed{false};
 
 public:
+  TestRunner() {};
   TestRunner(ProgramOptions::Options const &options, AIID aiid)
       : m_timeout(options.wait_upto_millis) {
     m_game = VirtualGames(
@@ -25,18 +35,42 @@ public:
          battleship::Col{static_cast<battleship::Col::type>(options.colSize)}});
   }
 
+  TestRunner(const TestRunner &) = delete;
+  TestRunner(TestRunner &&other) {
+    m_game = std::move(other.m_game);
+    m_app = std::move(other.m_app);
+    m_timeout = other.m_timeout;
+    m_round.exchange(other.m_round);
+    m_completed.exchange(other.m_completed);
+  }
+
+  // TestRunner() = default;
+
+  // TestRunner(TestRunner &&) = default;
+
   void start_tests(std::size_t nbrIterations) {
     if (!initalize_app(m_game.program_name(), m_game.aiid()))
       return;
+    m_round.store(0);
+    m_completed.store(false);
     for (std::size_t test_nbr = 0; test_nbr < nbrIterations; ++test_nbr) {
+      m_round.store(test_nbr);
       begin_test();
       run_test();
     }
 
     send_quit();
+    m_completed.store(true);
   };
 
   const VirtualGames &games() const { return m_game; }
+
+  constexpr const std::size_t current_round() const noexcept {
+    return m_round.load();
+  }
+  constexpr const bool is_completed() const noexcept {
+    return m_completed.load();
+  }
 
 private:
   bool initalize_app(std::string program, AIID id) {
@@ -160,14 +194,4 @@ private:
     // std::cout << "Miss\n";
     m_app.write((unsigned char *)"Q\n", 2);
   }
-  //   void print_stats(SingleRun const &run) {
-  // auto &p = std::cout;
-  //     p << "Stats for run: \n" << "-------------------------------------\n";
-  //     p << "Total guesses: " << run.guesses.size() << '\n';
-  //     p << "Shortest Guess: " << run.total_stats.shortest_answer << "\n";
-  //     p << "Longest Guess: " << run.total_stats.longest_answer << "\n";
-  //     p << "Repeat Guesses: " << run.total_stats.repeat_guess_count << '\n';
-  //     p << "Invalid Guesses: " << run.total_stats.invalid_guess_count <<
-  //     '\n';
-  //   }
 };

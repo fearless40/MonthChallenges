@@ -17,7 +17,7 @@ struct Options {
   std::size_t wait_upto_millis{500};
   std::string program_to_test{};
   std::string ship_layout_file{};
-  std::string result_file{"results.txt"};
+  std::string result_file{""};
   std::string options_file{};
 
   bool randomShips{true};

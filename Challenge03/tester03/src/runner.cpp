@@ -1,4 +1,5 @@
 #include "runner.hpp"
+#include <fstream>
 #include "aistats.hpp"
 #include "programoptions.hpp"
 #include "reproc++/reproc.hpp"
@@ -79,9 +80,13 @@ get_requested_ai(ProgramOptions::Options const &opt) {
   return {};
 }
 
+
+constexpr const char * output_header(); 
 void output_report(std::ostream &s, const VirtualGames &game);
+void output_games(std::ostream &s, const std::vector<VirtualGames::Game> & games) ;
 bool test(ProgramOptions::Options const &opt) {
 
+  std::string_view const bar = "▒";
   auto ai_ids_opt = get_requested_ai(opt);
 
   if (!ai_ids_opt)
@@ -89,29 +94,96 @@ bool test(ProgramOptions::Options const &opt) {
 
   auto &ai_ids = ai_ids_opt.value();
 
-  TestRunner tester{opt, ai_ids.front()};
-  std::atomic<bool> done_thread{false};
+  std::vector<TestRunner> tests;
 
-  // tester.start_tests(opt.nbrIterations);
-
-  auto thread_me = [&tester, &done_thread](std::size_t iterations) {
-    std::cout << std::this_thread::get_id() << " Run Tests " << '\n';
-    tester.start_tests(iterations);
-    done_thread = true;
+  for (auto ai_id : ai_ids) {
+    tests.emplace_back(opt, ai_id);
   };
 
-  std::jthread run_test{thread_me, opt.nbrIterations};
+  std::atomic<bool> done_thread{false};
 
-  std::cout << std::this_thread::get_id() << " Main function " << '\n';
+  auto thread_me = [](std::vector<TestRunner>::iterator it,
+                      std::size_t iterations) { it->start_tests(iterations); };
+
+  std::vector<std::jthread> threads;
+
+  for (auto it = tests.begin(); it != tests.end(); ++it) {
+
+    threads.emplace_back(thread_me, it, opt.nbrIterations);
+  }
+
+  std::cout << '\n';
+  // std::cout << "\e[H"; 
+  std::cout << tests.front().games().program_name() << '\n';
   while (done_thread == false) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    std::cout << "Waiting..." << '\n';
-  }
-  run_test.join();
 
-  if (opt.result_file != "") {
-    output_report(std::cout, tester.games());
-  }
+    std::size_t nbr_finished = 0;
+    // Now write the AI
+    for (auto &it : tests) {
+      std::cout << "\e[0K" << "\e[0m"; // Erase to end of line
+      std::cout << it.games().aiid() << " :: ";
+      if (it.is_completed()) {
+        std::cout << "\e[38;2;0;220;0m" << "done";
+        ++nbr_finished;
+      } else {
+        auto current_round = it.current_round();
+        std::cout << "\e[0m" << std::setw(5) << current_round << " :: ";
+        auto percent = ((current_round * 100) / opt.nbrIterations) / 4;
+        std::cout << std::setw(3) << percent * 4 << "% :: ";
+        for( std::size_t i = 1; i < percent; ++i ) {
+
+            std::cout << "\e[38;2;" << i + 50 << ";" << 100 << ";"
+            << i*2 +50 << "m" << bar;
+            }
+         
+         } 
+
+        std::cout << '\n';
+      }
+
+      if (nbr_finished >= tests.size()) {
+        done_thread = true;
+        break;
+      }
+      
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      std::cout << "\e[" << tests.size()   << 'F';
+   } 
+
+    for (auto &thread : threads) {
+      thread.join();
+    }
+
+    if (opt.result_file == "") {
+      for( auto const & runner : tests ) {
+         std::cout << "\e[0m"; 
+         std::cout << output_header() << '\n'; 
+         output_report(std::cout, runner.games() );
+      }
+    } else { 
+      std::ofstream file{opt.result_file, std::ios::trunc}; 
+      if( file ) { 
+         std::cout << "Writing report to: " << opt.result_file << '\n';
+          auto const time = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
+          file << "Testing report on " << std::format("{:%m-%d-%Y %X}", time) << '\n';
+          for( auto const & runner : tests) {
+            file << output_header() << '\n';
+            output_report(file, runner.games());
+          }
+          file << output_header() << "\nGames:\n";
+          for( auto const & runner : tests) {
+            output_games( file, runner.games().all_games() );
+         }
+
+          file << '\n' << output_header() << "\nMoves:\n";
+            // for( auto const & runner : test) { 
+            //   output_moves(file, runner.games() ); 
+            // }
+   }
+   }
+         
+  
 
   return true;
 }
@@ -129,14 +201,17 @@ void output_time(std::ostream &s, const char *label,
   }
 }
 
-void output_report(std::ostream &s, const VirtualGames &games) {
-  const char *header = "====================================================\n";
-  const char e = '\n';
 
-  std::size_t game_count = 0;
-  for (auto const &game : games.all_games()) {
-    s << e << header << e;
-    s << "Game Number: " << ++game_count << e;
+constexpr const char * output_header() { 
+   return  "====================================================\n";
+};
+
+
+
+void output_game( std::ostream &s, std::size_t id, const VirtualGames::Game & game ) {
+    constexpr char e = '\n';
+    s << e << output_header() << e;
+    s << "Game Number: " << id << e;
     s << e;
     output_time(s, "Total time", game.stats.total_time);
 
@@ -148,7 +223,18 @@ void output_report(std::ostream &s, const VirtualGames &games) {
     output_time(s, "Longest answer", game.stats.longest_answer);
     s << "Average Answer:" << game.stats.avg_answer << e;
   }
-  s << "Testing Results\n" << header;
+
+void output_games(std::ostream &s, const std::vector<VirtualGames::Game> & games) {
+   std::size_t game_count = 0; 
+   for( auto const & game : games ) {
+       output_game( s, ++game_count, game );
+   }
+}
+
+
+void output_report(std::ostream &s, const VirtualGames &games) {
+  const char e = '\n';
+
   s << "Program: " << games.program_name() << e;
   s << "AI ID: " << games.aiid() << e;
   s << e;
@@ -161,5 +247,5 @@ void output_report(std::ostream &s, const VirtualGames &games) {
   s << e;
   s << "Shortest Answer: " << games.global_stats().shortest_answer << e;
   output_time(s, "Longest answer", games.global_stats().longest_answer);
-  s << "Average Answer:" << games.global_stats().avg_answer << e;
+  s << "Average Answer: " << games.global_stats().avg_answer << e;
 };

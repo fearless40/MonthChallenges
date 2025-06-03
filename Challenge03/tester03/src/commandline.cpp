@@ -24,7 +24,7 @@ ProgramOptions::Options parse(int argc, char *argv[]) {
             "Smallest ship default is 2" &
         value("largest ship", opt.largestShip) % "Largest ship default is 5"),
        (option("-o", "--output") &
-        value(opt.result_file) %
+        value("report file", opt.result_file) %
             "Write results to a file. Default is results.txt"),
        (option("--layout") &
         value("layout file", opt.ship_layout_file) %
