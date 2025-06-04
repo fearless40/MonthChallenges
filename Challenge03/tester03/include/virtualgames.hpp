@@ -3,6 +3,7 @@
 #include "ship.hpp"
 #include <bitset>
 #include <chrono>
+#include <cstddef>
 
 class VirtualGames {
   // Types used
@@ -44,10 +45,61 @@ public:
 
     std::size_t repeat_guess_count{0};
     std::size_t invalid_guess_count{0};
-    std::size_t average_guess_count{0};
     std::size_t total_guess_count{0};
   };
   ;
+  struct GlobalRunStats : public VirtualStats {
+    std::size_t average_guess_count{0};
+    std::array<std::size_t, 7> ending_state_counts{};
+
+    std::size_t ending_state(EndingState state) const {
+      return ending_state_counts[static_cast<std::size_t>(state)];
+    }
+
+    void set_ending_state(EndingState state) {
+      ++ending_state_counts[static_cast<std::size_t>(state)];
+    }
+
+    GlobalRunStats &operator+=(GlobalRunStats const &other) {
+      shortest_answer = std::min(shortest_answer, other.shortest_answer);
+      longest_answer = std::min(longest_answer, other.longest_answer);
+      if (avg_answer.count() == 0)
+        avg_answer = other.avg_answer;
+      else
+        avg_answer = (avg_answer + other.avg_answer) / 2;
+      total_time += other.total_time;
+
+      repeat_guess_count += other.repeat_guess_count;
+      invalid_guess_count += other.invalid_guess_count;
+      total_guess_count += other.total_guess_count;
+
+      if (average_guess_count == 0)
+        average_guess_count = other.average_guess_count;
+      else
+        average_guess_count =
+            (average_guess_count + other.average_guess_count) / 2;
+
+      std::transform(ending_state_counts.begin(), ending_state_counts.end(),
+                     other.ending_state_counts.begin(),
+                     ending_state_counts.begin(), std::plus{});
+      return *this;
+    };
+
+    GlobalRunStats &operator+=(VirtualStats const other) {
+      shortest_answer = std::min(shortest_answer, other.shortest_answer);
+      longest_answer = std::min(longest_answer, other.longest_answer);
+      if (avg_answer.count() == 0)
+        avg_answer = other.avg_answer;
+      else
+        avg_answer = (avg_answer + other.avg_answer) / 2;
+      total_time += other.total_time;
+
+      repeat_guess_count += other.repeat_guess_count;
+      invalid_guess_count += other.invalid_guess_count;
+      total_guess_count += other.total_guess_count;
+      return *this;
+    }
+  };
 
   struct Guess_Stats {
     battleship::RowCol guess;
@@ -103,7 +155,7 @@ private:
   battleship::GameLayout m_layout;
 
   Game m_current;
-  VirtualStats m_global;
+  GlobalRunStats m_global;
   std::vector<Game> m_games;
   std::chrono::high_resolution_clock::time_point m_guess_time;
 };

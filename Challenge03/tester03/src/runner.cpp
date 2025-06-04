@@ -1,5 +1,4 @@
 #include "runner.hpp"
-#include <fstream>
 #include "aistats.hpp"
 #include "programoptions.hpp"
 #include "reproc++/reproc.hpp"
@@ -9,6 +8,7 @@
 #include <charconv>
 #include <chrono>
 #include <cstddef>
+#include <fstream>
 #include <iostream>
 #include <numeric>
 #include <optional>
@@ -80,10 +80,10 @@ get_requested_ai(ProgramOptions::Options const &opt) {
   return {};
 }
 
-
-constexpr const char * output_header(); 
+constexpr const char *output_header();
 void output_report(std::ostream &s, const VirtualGames &game);
-void output_games(std::ostream &s, const std::vector<VirtualGames::Game> & games) ;
+void output_games(std::ostream &s,
+                  const std::vector<VirtualGames::Game> &games);
 bool test(ProgramOptions::Options const &opt) {
 
   std::string_view const bar = "▒";
@@ -113,7 +113,7 @@ bool test(ProgramOptions::Options const &opt) {
   }
 
   std::cout << '\n';
-  // std::cout << "\e[H"; 
+  // std::cout << "\e[H";
   std::cout << tests.front().games().program_name() << '\n';
   while (done_thread == false) {
 
@@ -130,122 +130,58 @@ bool test(ProgramOptions::Options const &opt) {
         std::cout << "\e[0m" << std::setw(5) << current_round << " :: ";
         auto percent = ((current_round * 100) / opt.nbrIterations) / 4;
         std::cout << std::setw(3) << percent * 4 << "% :: ";
-        for( std::size_t i = 1; i < percent; ++i ) {
+        for (std::size_t i = 1; i < percent; ++i) {
 
-            std::cout << "\e[38;2;" << i + 50 << ";" << 100 << ";"
-            << i*2 +50 << "m" << bar;
-            }
-         
-         } 
-
-        std::cout << '\n';
+          std::cout << "\e[38;2;" << i + 50 << ";" << 100 << ";" << i * 2 + 50
+                    << "m" << bar;
+        }
       }
 
-      if (nbr_finished >= tests.size()) {
-        done_thread = true;
-        break;
-      }
-      
-
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      std::cout << "\e[" << tests.size()   << 'F';
-   } 
-
-    for (auto &thread : threads) {
-      thread.join();
+      std::cout << '\n';
     }
 
-    if (opt.result_file == "") {
-      for( auto const & runner : tests ) {
-         std::cout << "\e[0m"; 
-         std::cout << output_header() << '\n'; 
-         output_report(std::cout, runner.games() );
-      }
-    } else { 
-      std::ofstream file{opt.result_file, std::ios::trunc}; 
-      if( file ) { 
-         std::cout << "Writing report to: " << opt.result_file << '\n';
-          auto const time = std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
-          file << "Testing report on " << std::format("{:%m-%d-%Y %X}", time) << '\n';
-          for( auto const & runner : tests) {
-            file << output_header() << '\n';
-            output_report(file, runner.games());
-          }
-          file << output_header() << "\nGames:\n";
-          for( auto const & runner : tests) {
-            output_games( file, runner.games().all_games() );
-         }
+    if (nbr_finished >= tests.size()) {
+      done_thread = true;
+      break;
+    }
 
-          file << '\n' << output_header() << "\nMoves:\n";
-            // for( auto const & runner : test) { 
-            //   output_moves(file, runner.games() ); 
-            // }
-   }
-   }
-         
-  
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::cout << "\e[" << tests.size() << 'F';
+  }
+
+  for (auto &thread : threads) {
+    thread.join();
+  }
+
+  if (opt.result_file == "") {
+    for (auto const &runner : tests) {
+      std::cout << "\e[0m";
+      std::cout << output_header() << '\n';
+      output_report(std::cout, runner.games());
+    }
+  } else {
+    std::ofstream file{opt.result_file, std::ios::trunc};
+    if (file) {
+      std::cout << "Writing report to: " << opt.result_file << '\n';
+      auto const time = std::chrono::current_zone()->to_local(
+          std::chrono::system_clock::now());
+      file << "Testing report on " << std::format("{:%m-%d-%Y %X}", time)
+           << '\n';
+      for (auto const &runner : tests) {
+        file << output_header() << '\n';
+        output_report(file, runner.games());
+      }
+      file << output_header() << "\nGames:\n";
+      for (auto const &runner : tests) {
+        output_games(file, runner.games().all_games());
+      }
+
+      file << '\n' << output_header() << "\nMoves:\n";
+      // for( auto const & runner : test) {
+      //   output_moves(file, runner.games() );
+      // }
+    }
+  }
 
   return true;
 }
-
-void output_time(std::ostream &s, const char *label,
-                 VirtualGames::TimeT duration) {
-  if (label)
-    s << label << ": ";
-
-  if (duration.count() > 1000) {
-    s << std::chrono::duration_cast<std::chrono::milliseconds>(duration)
-      << '\n';
-  } else {
-    s << duration << '\n';
-  }
-}
-
-
-constexpr const char * output_header() { 
-   return  "====================================================\n";
-};
-
-
-
-void output_game( std::ostream &s, std::size_t id, const VirtualGames::Game & game ) {
-    constexpr char e = '\n';
-    s << e << output_header() << e;
-    s << "Game Number: " << id << e;
-    s << e;
-    output_time(s, "Total time", game.stats.total_time);
-
-    s << "Total Guesses: " << game.stats.total_guess_count << e;
-    s << "Invalid Guesses: " << game.stats.invalid_guess_count << e;
-    s << "Repeat Guesses: " << game.stats.repeat_guess_count << e;
-    s << e;
-    s << "Shortest Answer: " << game.stats.shortest_answer << e;
-    output_time(s, "Longest answer", game.stats.longest_answer);
-    s << "Average Answer:" << game.stats.avg_answer << e;
-  }
-
-void output_games(std::ostream &s, const std::vector<VirtualGames::Game> & games) {
-   std::size_t game_count = 0; 
-   for( auto const & game : games ) {
-       output_game( s, ++game_count, game );
-   }
-}
-
-
-void output_report(std::ostream &s, const VirtualGames &games) {
-  const char e = '\n';
-
-  s << "Program: " << games.program_name() << e;
-  s << "AI ID: " << games.aiid() << e;
-  s << e;
-  output_time(s, "Total time", games.global_stats().total_time);
-  // s << "Total time: " << games.global_stats().total_time << e;
-  s << "Invalid Guesses: " << games.global_stats().invalid_guess_count << e;
-  s << "Repeat Guesses: " << games.global_stats().repeat_guess_count << e;
-  s << "Average guess per game: " << games.global_stats().average_guess_count
-    << e;
-  s << e;
-  s << "Shortest Answer: " << games.global_stats().shortest_answer << e;
-  output_time(s, "Longest answer", games.global_stats().longest_answer);
-  s << "Average Answer: " << games.global_stats().avg_answer << e;
-};
