@@ -34,6 +34,7 @@ void VirtualGames::start_guess_timer() {
 void VirtualGames::end_game(VirtualGames::EndingState state) {
   calculate_stats(m_current);
   m_current.ending_state = state;
+  m_global.set_ending_state(state);
   m_games.push_back(std::move(m_current));
 }
 
@@ -52,24 +53,7 @@ void VirtualGames::calculate_stats(Game &g) {
   }
   g.stats.total_guess_count = g.guesses.size();
 
-  m_global.shortest_answer =
-      std::min(m_global.shortest_answer, g.stats.shortest_answer);
-  m_global.longest_answer =
-      std::max(m_global.longest_answer, g.stats.longest_answer);
-  m_global.total_time += g.stats.total_time;
-
-  if (m_global.average_guess_count == 0) {
-    m_global.average_guess_count = g.guesses.size();
-  } else {
-    m_global.average_guess_count =
-        (m_global.average_guess_count + g.guesses.size()) / 2;
-  }
-  m_global.invalid_guess_count =
-
-      (m_global.invalid_guess_count + g.stats.invalid_guess_count) / 2;
-  m_global.repeat_guess_count =
-      (m_global.repeat_guess_count + g.stats.repeat_guess_count) / 2;
-  m_global.avg_answer = (m_global.avg_answer + g.stats.avg_answer) / 2;
+  m_global += g.stats;
 };
 
 VirtualGames::GuessResult VirtualGames::guess(const battleship::RowCol guess) {
