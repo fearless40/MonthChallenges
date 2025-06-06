@@ -141,7 +141,7 @@ public:
 
   constexpr AIID aiid() const { return m_id; }
   constexpr std::string program_name() const { return m_program_name; }
-  constexpr const VirtualStats &global_stats() const { return m_global; }
+  constexpr const GlobalRunStats &global_stats() const { return m_global; }
   constexpr const std::vector<Game> &all_games() const { return m_games; }
   // Private Methods
 private:

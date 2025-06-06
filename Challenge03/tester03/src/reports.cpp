@@ -72,6 +72,11 @@ std::ostream &value_normal(std::ostream &s) {
   return s;
 }
 
+std::ostream &value_abnormal(std::ostream &s) {
+  s << color(220, 20, 20);
+  return s;
+}
+
 std::ostream &reset(std::ostream &s) {
   s << "\e[0m";
   return s;
@@ -84,30 +89,34 @@ constexpr std::ostream &el(std::ostream &s) {
   return s;
 }
 
-void output_game(std::ostream &s, std::size_t id,
-                 const VirtualGames::Game &game) {
-  s << el << header << el;
-  s << "Game Number: " << id << e;
-  s << e;
-  output_time(s, "Total time", game.stats.total_time);
+void print_single_game_stats(std::ostream &s, std::size_t id,
+                             const VirtualGames::Game &game) {
+  s << color::text << "Game Number: " << color::value_normal << id << el;
+  s << color::text << "Total time: " << color::value_normal
+    << game.stats.total_time << el;
 
-  s << "Total Guesses: " << game.stats.total_guess_count << e;
-  s << "Invalid Guesses: " << game.stats.invalid_guess_count << e;
-  s << "Repeat Guesses: " << game.stats.repeat_guess_count << e;
-  s << e;
-  s << "Shortest Answer: " << game.stats.shortest_answer << e;
-  output_time(s, "Longest answer", game.stats.longest_answer);
-  s << "Average Answer:" << game.stats.avg_answer << e;
+  s << color::text << "Total Guesses: " << color::value_normal
+    << game.stats.total_guess_count << el;
+  s << color::text << "Invalid Guesses: " << color::value_normal
+    << game.stats.invalid_guess_count << el;
+  s << color::text << "Repeat Guesses: " << color::value_normal
+    << game.stats.repeat_guess_count << el;
+  s << color::text << "Shortest Answer: " << color::value_normal
+    << game.stats.shortest_answer << el;
+  s << color::text << "Longest answer: " << color::value_normal
+    << game.stats.longest_answer << el;
+  s << color::text << "Average Answer: " << color::value_normal
+    << game.stats.avg_answer << el;
 }
 
-void output_games(std::ostream &s,
-                  const std::vector<VirtualGames::Game> &games) {
-  std::size_t game_count = 0;
-  for (auto const &game : games) {
-    output_game(s, ++game_count, game);
-  }
-}
-
+// void output_games(std::ostream &s,
+//                   const std::vector<VirtualGames::Game> &games) {
+//   std::size_t game_count = 0;
+//   for (auto const &game : games) {
+//     output_game(s, ++game_count, game);
+//   }
+// }
+//
 void print_game_board(std::ostream &s) {}
 
 void print_global_stats(std::ostream &s, const VirtualGames &games,
@@ -133,4 +142,36 @@ void print_global_stats(std::ostream &s, const VirtualGames &games,
     << print_time(games.global_stats().longest_answer) << el;
   s << color::text << "Average time to answer: " << color::value_normal
     << print_time(games.global_stats().avg_answer) << el;
+
+  s << color::text << "Count of games 'timed out': " << color::value_normal
+    << games.global_stats().ending_state(VirtualGames::EndingState::timeout)
+    << el;
+  s << color::text << "Count of games 'program_error': " << color::value_normal
+    << games.global_stats().ending_state(
+           VirtualGames::EndingState::program_error)
+    << el;
+  s << color::text << "Count of games 'other': " << color::value_normal
+    << games.global_stats().ending_state(VirtualGames::EndingState::other)
+    << el;
+  s << color::text << "Count of games 'too_many_guess': " << color::value_normal
+    << games.global_stats().ending_state(
+           VirtualGames::EndingState::too_many_guess)
+    << el;
+  s << color::text
+    << "Count of games 'unable_read_output: " << color::value_normal
+    << games.global_stats().ending_state(
+           VirtualGames::EndingState::unable_read_output)
+    << el;
+  s << color::text
+    << "Count of games 'program_has_no_guesses': " << color::value_normal
+    << games.global_stats().ending_state(
+           VirtualGames::EndingState::program_has_no_guesses)
+    << el;
+  s << color::text << "Count of games 'unknown': " << color::value_abnormal
+    << games.global_stats().ending_state(VirtualGames::EndingState::none) << el;
+
+  s << color::text << "Count of games 'sunk_all_ships': " << color::value_normal
+    << games.global_stats().ending_state(
+           VirtualGames::EndingState::sunk_all_ships)
+    << el;
 };
