@@ -1,8 +1,8 @@
+#include "baseconv.hpp"
 #include "virtualgames.hpp"
 #include <chrono>
 #include <ostream>
-#include <type_traits>
-
+namespace report {
 using std::ostream;
 
 struct print_time {
@@ -30,6 +30,22 @@ private:
   const VirtualGames::TimeT duration;
 };
 
+struct repeat {
+  constexpr explicit repeat(std::size_t count, const std::string_view &value)
+      : m_count(count), m_value(value) {}
+
+  friend std::ostream &operator<<(std::ostream &s, const repeat &rp) {
+    for (std::size_t c = 0; c < rp.m_count; ++c) {
+      s << rp.m_value;
+    }
+    return s;
+  }
+
+private:
+  const std::size_t m_count;
+  const std::string_view m_value;
+};
+
 std::ostream &header(std::ostream &s) {
   s << "========================================";
   return s;
@@ -53,8 +69,9 @@ struct color {
       : r(red), g(green), b(blue) {};
 
   friend std::ostream &operator<<(std::ostream &s, const color &c) {
-    if (use_color_v)
-      s << "\e[38;2;" << c.r << ';' << c.g << ';' << c.b << 'm';
+    if (use_color_v) {
+      s << "\e[38;2;" << c.r << ";" << c.g << ";" << c.b << "m";
+    }
     return s;
   };
 
@@ -63,7 +80,7 @@ private:
 };
 
 std::ostream &text(std::ostream &s) {
-  s << color(255, 255, 255);
+  s << color(0, 255, 255);
   return s;
 }
 
@@ -74,6 +91,11 @@ std::ostream &value_normal(std::ostream &s) {
 
 std::ostream &value_abnormal(std::ostream &s) {
   s << color(220, 20, 20);
+  return s;
+}
+
+std::ostream &highlite(std::ostream &s) {
+  s << color(0, 220, 0);
   return s;
 }
 
@@ -117,14 +139,56 @@ void print_single_game_stats(std::ostream &s, std::size_t id,
 //   }
 // }
 //
-void print_game_board(std::ostream &s) {}
+void print_game_board(std::ostream &s, battleship::GameLayout const &layout,
+                      battleship::Ships const &ships) {
+  // Write header
+  //    A B C D E F G H I J K L
+  //    _______________
+  //  1|. 2 . . . . . . . . . .
+  //   |
+  //  2|
+  //   |
+  //  3|
+  //   |
+  // 10|
 
-void print_global_stats(std::ostream &s, const VirtualGames &games,
-                        bool use_color) {
-  if (use_color)
-    color::use_color();
-  else
-    color::no_color();
+  s << "    "; // two blank spaces for header
+  for (std::size_t col = 0; col != layout.nbrCols.size; ++col) {
+    s << base26::to_string(static_cast<int>(col)) << ' ';
+  }
+  s << el;
+
+  // Col line
+  s << "   " << "┌" << repeat(layout.nbrCols.size * 2, "─") << el;
+
+  // Rows
+  for (std::size_t row = 0; row < layout.nbrRows.size; ++row) {
+    if (row < 10)
+      s << "  ";
+    else
+      s << " ";
+    s << row << "│";
+    for (std::size_t col = 0; col < layout.nbrCols.size; ++col) {
+      if (auto ship = battleship::ship_at_position(
+              ships,
+              battleship::RowCol{
+                  battleship::Row{static_cast<unsigned short>(row)},
+                  battleship::Col{static_cast<unsigned short>(col)}});
+          ship) {
+        s << color::highlite << ship.value().id().size;
+      } else {
+        s << ".";
+      }
+      s << color::reset << " ";
+    }
+    s << el;
+  }
+}
+void print_colors_on() { color::use_color(); }
+
+void print_colors_off() { color::no_color(); }
+
+void print_global_stats(std::ostream &s, const VirtualGames &games) {
 
   s << color::text << "Total time: " << color::value_normal
     << print_time(games.global_stats().total_time) << el;
@@ -175,3 +239,4 @@ void print_global_stats(std::ostream &s, const VirtualGames &games,
            VirtualGames::EndingState::sunk_all_ships)
     << el;
 };
+} // namespace report

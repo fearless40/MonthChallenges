@@ -50,7 +50,7 @@ public:
   ;
   struct GlobalRunStats : public VirtualStats {
     std::size_t average_guess_count{0};
-    std::array<std::size_t, 7> ending_state_counts{};
+    std::array<std::size_t, 8> ending_state_counts{};
 
     std::size_t ending_state(EndingState state) const {
       return ending_state_counts[static_cast<std::size_t>(state)];
@@ -143,6 +143,7 @@ public:
   constexpr std::string program_name() const { return m_program_name; }
   constexpr const GlobalRunStats &global_stats() const { return m_global; }
   constexpr const std::vector<Game> &all_games() const { return m_games; }
+  const battleship::GameLayout layout() const { return m_layout; }
   // Private Methods
 private:
   void calculate_stats(Game &g);

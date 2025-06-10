@@ -1,6 +1,7 @@
 #include "runner.hpp"
 #include "aistats.hpp"
 #include "programoptions.hpp"
+#include "reports.hpp"
 #include "reproc++/reproc.hpp"
 #include "reprochelper.hpp"
 #include "testrunner.hpp"
@@ -10,6 +11,7 @@
 #include <cstddef>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <numeric>
 #include <optional>
 #include <ostream>
@@ -156,32 +158,38 @@ bool test(ProgramOptions::Options const &opt) {
   if (opt.result_file == "") {
     for (auto const &runner : tests) {
       std::cout << "\e[0m";
-      std::cout << output_header() << '\n';
+      // std::cout << output_header() << '\n';
       output_report(std::cout, runner.games());
     }
   } else {
-    std::ofstream file{opt.result_file, std::ios::trunc};
-    if (file) {
-      std::cout << "Writing report to: " << opt.result_file << '\n';
-      auto const time = std::chrono::current_zone()->to_local(
-          std::chrono::system_clock::now());
-      file << "Testing report on " << std::format("{:%m-%d-%Y %X}", time)
-           << '\n';
-      for (auto const &runner : tests) {
-        file << output_header() << '\n';
-        output_report(file, runner.games());
-      }
-      file << output_header() << "\nGames:\n";
-      for (auto const &runner : tests) {
-        output_games(file, runner.games().all_games());
-      }
-
-      file << '\n' << output_header() << "\nMoves:\n";
-      // for( auto const & runner : test) {
-      //   output_moves(file, runner.games() );
-      // }
-    }
+    // std::ofstream file{opt.result_file, std::ios::trunc};
+    // if (file) {
+    //   std::cout << "Writing report to: " << opt.result_file << '\n';
+    //   auto const time = std::chrono::current_zone()->to_local(
+    //       std::chrono::system_clock::now());
+    //   file << "Testing report on " << std::format("{:%m-%d-%Y %X}", time)
+    //        << '\n';
+    //   for (auto const &runner : tests) {
+    //     file << output_header() << '\n';
+    //     output_report(file, runner.games());
+    //   }
+    //   file << output_header() << "\nGames:\n";
+    //   for (auto const &runner : tests) {
+    //     output_games(file, runner.games().all_games());
+    //   }
+    //
+    //   file << '\n' << output_header() << "\nMoves:\n";
+    //   // for( auto const & runner : test) {
+    //   //   output_moves(file, runner.games() );
+    //   // }
+    // }
   }
 
   return true;
+}
+
+void output_report(std::ostream &s, VirtualGames const &games) {
+  report::print_colors_on();
+  report::print_global_stats(s, games);
+  report::print_game_board(s, games.layout(), games.all_games().front().ships);
 }
