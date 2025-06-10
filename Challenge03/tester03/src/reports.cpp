@@ -70,7 +70,8 @@ struct color {
 
   friend std::ostream &operator<<(std::ostream &s, const color &c) {
     if (use_color_v) {
-      s << "\e[38;2;" << c.r << ";" << c.g << ";" << c.b << "m";
+      s << "\e[38;2;" << static_cast<int>(c.r) << ";" << static_cast<int>(c.g)
+        << ";" << static_cast<int>(c.b) << "m";
     }
     return s;
   };
@@ -80,12 +81,12 @@ private:
 };
 
 std::ostream &text(std::ostream &s) {
-  s << color(0, 255, 255);
+  s << color(200, 200, 200);
   return s;
 }
 
 std::ostream &value_normal(std::ostream &s) {
-  s << color(200, 200, 200);
+  s << color(255, 255, 255);
   return s;
 }
 
@@ -152,11 +153,11 @@ void print_game_board(std::ostream &s, battleship::GameLayout const &layout,
   //   |
   // 10|
 
-  s << "    "; // two blank spaces for header
+  s << "    " << color::text; // two blank spaces for header
   for (std::size_t col = 0; col != layout.nbrCols.size; ++col) {
     s << base26::to_string(static_cast<int>(col)) << ' ';
   }
-  s << el;
+  s << el << color::text;
 
   // Col line
   s << "   " << "┌" << repeat(layout.nbrCols.size * 2, "─") << el;
@@ -177,7 +178,7 @@ void print_game_board(std::ostream &s, battleship::GameLayout const &layout,
           ship) {
         s << color::highlite << ship.value().id().size;
       } else {
-        s << ".";
+        s << color::color(80, 80, 80) << ".";
       }
       s << color::reset << " ";
     }

@@ -9,9 +9,7 @@
 #include <charconv>
 #include <chrono>
 #include <cstddef>
-#include <fstream>
 #include <iostream>
-#include <iterator>
 #include <numeric>
 #include <optional>
 #include <ostream>
@@ -82,10 +80,25 @@ get_requested_ai(ProgramOptions::Options const &opt) {
   return {};
 }
 
-constexpr const char *output_header();
 void output_report(std::ostream &s, const VirtualGames &game);
 void output_games(std::ostream &s,
                   const std::vector<VirtualGames::Game> &games);
+struct color {
+  constexpr explicit color(unsigned char red, unsigned char green,
+                           unsigned char blue)
+      : r(red), g(green), b(blue) {};
+
+  friend std::ostream &operator<<(std::ostream &s, const color &c) {
+    // std::cout << "\e[38;2;" << i + 50 << ";" << 100 << ";" << i * 2 +
+    s << "\e[38;2;" << static_cast<int>(c.r) << ";" << static_cast<int>(c.g)
+      << ";" << static_cast<int>(c.b) << "m";
+    return s;
+  };
+
+private:
+  const unsigned char r, g, b;
+};
+
 bool test(ProgramOptions::Options const &opt) {
 
   std::string_view const bar = "▒";
@@ -136,6 +149,7 @@ bool test(ProgramOptions::Options const &opt) {
 
           std::cout << "\e[38;2;" << i + 50 << ";" << 100 << ";" << i * 2 + 50
                     << "m" << bar;
+          // std::cout << color(i + 50, 100, i * 2 + 50) << bar;
         }
       }
 
