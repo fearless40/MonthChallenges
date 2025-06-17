@@ -6,6 +6,7 @@ add_executable(tester03
   src/runner.cpp
   src/virtualgames.cpp
   src/reports.cpp
+  src/showreport.cpp
 )
 
 if(MSVC_VERSION GREATER_EQUAL "1900")
@@ -36,5 +37,9 @@ target_link_libraries(tester03
   PRIVATE clipp
   PRIVATE reproc++
   PRIVATE challenges
+  PRIVATE ftxui::screen 
+  PRIVATE ftxui::dom
+  PRIVATE ftxui::component
+  
 )
 

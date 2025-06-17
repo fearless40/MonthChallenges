@@ -3,9 +3,14 @@
 #include "commandline.hpp"
 #include "programoptions.hpp"
 #include "runner.hpp"
+#include "showreport.hpp"
 
 int main(int argc, char *argv[]) {
+
   auto opt = commandline::parse(argc, argv);
+
+  ui::start(opt);
+  return 0;
 
   switch (opt.mode) {
   case ProgramOptions::RunMode::version:

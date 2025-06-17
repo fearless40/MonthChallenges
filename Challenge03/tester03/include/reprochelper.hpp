@@ -2,7 +2,7 @@
 
 #include "reproc++/reproc.hpp"
 
-reproc::options default_process_options() {
+inline reproc::options default_process_options() {
   reproc::options options;
   reproc::stop_actions stop = {
       {reproc::stop::noop, reproc::milliseconds(0)},

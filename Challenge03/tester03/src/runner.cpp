@@ -15,6 +15,9 @@
 #include <ostream>
 #include <system_error>
 #include <thread>
+#include <vector>
+
+const size_t MAX_ITERATIONS_PER_THREAD = 1500;
 
 void stripn(unsigned char *buff, std::size_t size) {
   for (std::size_t i = 0; i < size; ++i) {
@@ -99,6 +102,22 @@ private:
   const unsigned char r, g, b;
 };
 
+struct ScheduledTest {
+  TestRunner runner;
+  std::size_t iterations;
+};
+
+// std::vector<ScheduledTest> make_test_tasks(ProgramOptions::Options const &
+// opt,  std::vector<AIID> const &ids) {
+//
+//   std::vector<TestRunner> schedule;
+//   std::size_t extra_tasks = 1;
+//   if (opt.nbrIterations > MAX_ITERATIONS_PER_THREAD) {
+//     auto tasks_division = std::div(iterations, MAX_ITERATIONS_PER_THREAD);
+//     for (std::size_t count = 0; count < tasks_division; ++count) {
+//          schedule.emplace_back(TestRunner{opt, id)
+//
+
 bool test(ProgramOptions::Options const &opt) {
 
   std::string_view const bar = "▒";
@@ -181,7 +200,8 @@ bool test(ProgramOptions::Options const &opt) {
     //   std::cout << "Writing report to: " << opt.result_file << '\n';
     //   auto const time = std::chrono::current_zone()->to_local(
     //       std::chrono::system_clock::now());
-    //   file << "Testing report on " << std::format("{:%m-%d-%Y %X}", time)
+    //   file << "Testing report on " << std::format("{:%m-%d-%Y %X}",
+    //   time)
     //        << '\n';
     //   for (auto const &runner : tests) {
     //     file << output_header() << '\n';
