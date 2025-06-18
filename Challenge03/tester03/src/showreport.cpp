@@ -40,7 +40,7 @@ void start(ProgramOptions::Options const &opt)
   auto component3 = Slider("Slide me", &slider_value, 0, 100);
 
   int tab_selected = 0;
-  std::vector<std::string> tab_header_strings = {"Comp1", "Comp2", "Comp3"};
+  std::vector<std::string> tab_header_strings = {"Overview", "Comp2", "Comp3"};
   auto tab_header = Toggle(tab_header_strings, &tab_selected);
   auto tabs =
       Container::Tab({component, component2, component3}, &tab_selected);
