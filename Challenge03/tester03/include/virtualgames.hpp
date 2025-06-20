@@ -62,7 +62,7 @@ public:
 
     GlobalRunStats &operator+=(GlobalRunStats const &other) {
       shortest_answer = std::min(shortest_answer, other.shortest_answer);
-      longest_answer = std::min(longest_answer, other.longest_answer);
+      longest_answer = std::max(longest_answer, other.longest_answer);
       if (avg_answer.count() == 0)
         avg_answer = other.avg_answer;
       else
@@ -87,7 +87,7 @@ public:
 
     GlobalRunStats &operator+=(VirtualStats const other) {
       shortest_answer = std::min(shortest_answer, other.shortest_answer);
-      longest_answer = std::min(longest_answer, other.longest_answer);
+      longest_answer = std::max(longest_answer, other.longest_answer);
       if (avg_answer.count() == 0)
         avg_answer = other.avg_answer;
       else
