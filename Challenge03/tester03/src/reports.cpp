@@ -1,6 +1,7 @@
 #include "baseconv.hpp"
 #include "virtualgames.hpp"
 #include <chrono>
+#include <cstddef>
 #include <ostream>
 namespace report {
 using std::ostream;
@@ -189,6 +190,66 @@ void print_colors_on() { color::use_color(); }
 
 void print_colors_off() { color::no_color(); }
 
+// Only prints the first game for now
+void print_all_moves(std::ostream &s, const VirtualGames &games) {
+  auto int_size = [](std::size_t i) -> size_t {
+    if (i < 10)
+      return 1;
+    if (i < 100)
+      return 2;
+    if (i < 1000)
+      return 3;
+    if (i < 10000)
+      return 4;
+    return 0;
+  };
+
+  s << "ID "
+    << "Move" << '\n';
+  auto game = games.all_games().front();
+  std::size_t id = 0;
+  std::size_t col = 0;
+  std::size_t maxcolsize = 2;
+  if (game.guesses.size() > 99) {
+    maxcolsize = 3;
+  } else if (game.guesses.size() > 999) {
+    maxcolsize = 4;
+  }
+
+  for (auto &move : game.guesses) {
+    s << ++id;
+    s << repeat(maxcolsize - int_size(id), " ");
+    s << " ";
+    switch (move.result) {
+    case VirtualGames::Guess_Stats_Result::repeat:
+      s << color::color(200, 200, 0);
+      break;
+    case VirtualGames::Guess_Stats_Result::invalid:
+      s << color::color(200, 0, 0);
+      break;
+    case VirtualGames::Guess_Stats_Result::hit:
+      s << color::color(0, 200, 0);
+      break;
+    case VirtualGames::Guess_Stats_Result::miss:
+      s << color::value_normal;
+      break;
+    case VirtualGames::Guess_Stats_Result::sunk:
+      s << color::color(90, 100, 250);
+      break;
+    case VirtualGames::Guess_Stats_Result::unknown:
+      s << color::color(0, 0, 255);
+      break;
+    }
+
+    s << move.guess.as_base26_fmt() << ":" << (int)move.result << "\t\t";
+    if (++col > 3) {
+      s << '\n';
+      col = 0;
+    }
+    s << color::value_normal;
+  }
+}
+
 void print_global_stats(std::ostream &s, const VirtualGames &games) {
 
   s << color::text << "Total time: " << color::value_normal
@@ -198,7 +259,7 @@ void print_global_stats(std::ostream &s, const VirtualGames &games) {
   s << color::text << "Repeat Guesses: " << color::value_normal
     << games.global_stats().repeat_guess_count << el;
   s << color::text << "Average guess per game: " << color::value_normal
-    << games.global_stats().avg_answer << el;
+    << games.global_stats().average_guess_count << el;
 
   s << el;
   s << color::text << "Shortest Answer: " << color::value_normal

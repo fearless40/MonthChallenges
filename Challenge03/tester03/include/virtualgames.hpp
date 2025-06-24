@@ -97,13 +97,22 @@ public:
       repeat_guess_count += other.repeat_guess_count;
       invalid_guess_count += other.invalid_guess_count;
       total_guess_count += other.total_guess_count;
+      if (average_guess_count == 0) {
+        average_guess_count = other.total_guess_count;
+      } else {
+        average_guess_count =
+            (average_guess_count + other.total_guess_count) / 2;
+      }
       return *this;
     }
   };
 
+  enum class Guess_Stats_Result { unknown, miss, hit, invalid, sunk, repeat };
+
   struct Guess_Stats {
     battleship::RowCol guess;
     TimeT elapsed_time;
+    Guess_Stats_Result result{Guess_Stats_Result::unknown};
   };
 
   struct Game {

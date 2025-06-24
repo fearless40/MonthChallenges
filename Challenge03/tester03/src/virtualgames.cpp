@@ -62,16 +62,21 @@ VirtualGames::GuessResult VirtualGames::guess(const battleship::RowCol guess) {
       guess, std::chrono::duration_cast<VirtualGames::TimeT>(elapsed_time));
 
   // See if the guess is valid
-  if (!m_layout.is_row_col_valid(guess))
+  if (!m_layout.is_row_col_valid(guess)) {
     ++m_current.stats.invalid_guess_count;
+    m_current.guesses.back().result = Guess_Stats_Result::invalid;
+  }
 
   // Find repeats. Can be slow with large numbers of guesses. For modern
   // computers should be no problem
   if (auto exists = std::ranges::find(m_current.guesses.begin(),
                                       m_current.guesses.end() - 1, guess,
                                       &Guess_Stats::guess);
-      exists != m_current.guesses.end() - 1)
+      exists != m_current.guesses.end() - 1) {
     ++m_current.stats.repeat_guess_count;
+
+    m_current.guesses.back().result = Guess_Stats_Result::repeat;
+  }
 
   if (auto ship_opt = battleship::ship_at_position(m_current.ships, guess);
       ship_opt) {
@@ -83,12 +88,17 @@ VirtualGames::GuessResult VirtualGames::guess(const battleship::RowCol guess) {
         section_opt) {
       m_current.hits[index].hits.set(section_opt.value(), true);
       if (m_current.hits[index].is_sunk()) {
+        m_current.guesses.back().result = Guess_Stats_Result::sunk;
         return {GuessReport::Sink, shipdef};
+
       } else {
+        m_current.guesses.back().result = Guess_Stats_Result::hit;
         return {GuessReport::Hit, shipdef};
       }
     }
   }
+  if (m_current.guesses.back().result == Guess_Stats_Result::unknown)
+    m_current.guesses.back().result = Guess_Stats_Result::miss;
   return {GuessReport::Miss};
 }
 
