@@ -191,7 +191,7 @@ void print_colors_on() { color::use_color(); }
 void print_colors_off() { color::no_color(); }
 
 // Only prints the first game for now
-void print_all_moves(std::ostream &s, const VirtualGames &games) {
+void print_all_moves(std::ostream &s, const VirtualGames::Game &game) {
   auto int_size = [](std::size_t i) -> size_t {
     if (i < 10)
       return 1;
@@ -206,7 +206,6 @@ void print_all_moves(std::ostream &s, const VirtualGames &games) {
 
   s << "ID "
     << "Move" << '\n';
-  auto game = games.all_games().front();
   std::size_t id = 0;
   std::size_t col = 0;
   std::size_t maxcolsize = 2;
@@ -241,7 +240,8 @@ void print_all_moves(std::ostream &s, const VirtualGames &games) {
       break;
     }
 
-    s << move.guess.as_base26_fmt() << ":" << (int)move.result << "\t\t";
+    s << move.guess.as_base26_fmt() << ":" << (int)move.result;
+    s << ':' << move.elapsed_time << "\t\t";
     if (++col > 3) {
       s << '\n';
       col = 0;

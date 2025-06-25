@@ -226,5 +226,7 @@ void output_report(std::ostream &s, VirtualGames const &games) {
   report::print_colors_on();
   report::print_global_stats(s, games);
   report::print_game_board(s, games.layout(), games.all_games().front().ships);
-  report::print_all_moves(std::cout, games);
+
+  report::print_all_moves(std::cout, games.all_games()[0]);
+  report::print_all_moves(std::cout, games.all_games()[1]);
 }

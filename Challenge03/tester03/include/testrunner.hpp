@@ -131,7 +131,7 @@ private:
     // std::cout << "Run Tests\n";
     std::size_t count{0};
     const std::size_t MAX_COUNT = m_game.max_guesses();
-
+    m_game.start_guess_timer();
     while (1) {
       auto event =
           m_app.poll(reproc::event::out | reproc::event::deadline, m_timeout);
@@ -167,6 +167,20 @@ private:
     }
   }
   void begin_test() {
+    // Clear the input buffer so last guess not ending up in the next game
+    std::size_t byteRead{0};
+    std::pair<int, std::error_code> event;
+    unsigned char buffer[128];
+    do {
+      byteRead = 0;
+      event = m_app.poll(reproc::event::out, reproc::milliseconds(0));
+      if (event.first == reproc::event::out) {
+        std::error_code ec;
+        std::tie(byteRead, ec) =
+            m_app.read(reproc::stream::out, (unsigned char *)&buffer, 127);
+      }
+    } while (byteRead > 0);
+
     m_app.write((unsigned char *)"E\n", 2);
     m_game.new_game();
     m_game.start_guess_timer();
