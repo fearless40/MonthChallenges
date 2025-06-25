@@ -4,6 +4,7 @@
 #include "reports.hpp"
 #include "reproc++/reproc.hpp"
 #include "reprochelper.hpp"
+#include "showreport.hpp"
 #include "testrunner.hpp"
 #include "virtualgames.hpp"
 #include <charconv>
@@ -189,11 +190,15 @@ bool test(ProgramOptions::Options const &opt) {
   }
 
   if (opt.result_file == "") {
+    std::vector<VirtualGames> games;
     for (auto const &runner : tests) {
-      std::cout << "\e[0m";
+      // std::cout << "\e[0m";
       // std::cout << output_header() << '\n';
-      output_report(std::cout, runner.games());
+      // output_report(std::cout, );
+      games.push_back(std::move(runner.games()));
     }
+    ui::start(opt, games);
+
   } else {
     // std::ofstream file{opt.result_file, std::ios::trunc};
     // if (file) {

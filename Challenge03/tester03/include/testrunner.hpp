@@ -173,7 +173,7 @@ private:
     unsigned char buffer[128];
     do {
       byteRead = 0;
-      event = m_app.poll(reproc::event::out, reproc::milliseconds(0));
+      event = m_app.poll(reproc::event::out, reproc::milliseconds(1));
       if (event.first == reproc::event::out) {
         std::error_code ec;
         std::tie(byteRead, ec) =
