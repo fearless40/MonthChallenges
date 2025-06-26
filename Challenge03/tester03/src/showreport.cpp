@@ -1,24 +1,58 @@
 #include "showreport.hpp"
-#include "ftxui/component/captured_mouse.hpp"
 #include "ftxui/component/component_options.hpp"
 #include "ftxui/component/screen_interactive.hpp"
-#include "ftxui/dom/flexbox_config.hpp"
 #include "programoptions.hpp"
-#include "testrunner.hpp"
 #include "virtualgames.hpp"
-#include <chrono>
+#include <atomic>
 #include <format>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
+#include <ftxui/component/event.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/linear_gradient.hpp>
 #include <ftxui/dom/table.hpp>
+#include <iterator>
 
-#include <numeric>
 #include <string>
 #include <vector>
 namespace ui {
 
+struct AppTabs {
+  std::vector<ftxui::Component> components;
+  std::vector<std::string> labels;
+  int selected;
+  ftxui::ScreenInteractive screen{ftxui::ScreenInteractive::Fullscreen()};
+  ftxui::Component header_c;
+
+  ftxui::Component tabs_c;
+
+  ftxui::Component container_c;
+
+  void add_tab(std::string label, ftxui::Component comp) {
+    components.push_back(comp);
+    labels.push_back(label);
+    container_c->Add(comp);
+    tabs_c = ftxui::Toggle(labels, &selected);
+    screen.ExitLoopClosure()();
+    screen.Loop(ftxui::Container::Vertical({header_c, tabs_c, container_c}));
+  }
+
+  void remove_tab(std::string label) {
+    auto it = std::ranges::find(labels, label);
+    if (it != labels.end()) {
+      auto distance = std::distance(labels.begin(), it);
+      labels.erase(it);
+      components.erase(components.begin() + distance);
+      ftxui::ScreenInteractive::Active()->PostEvent(
+          ftxui::Event::Custom); // force redraw
+    }
+  }
+};
+
+namespace global {
+AppTabs tabs;
+
+}
 void AiButtonClick(AIID id) {}
 // std::accumulate(games.begin(), games.end(),
 //                            std::chrono::milliseconds(0),
@@ -83,9 +117,9 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
   // Start display things on the screen usign fxtui
 
   std::string input_text;
-  auto screen = ftxui::ScreenInteractive::Fullscreen();
+  // auto screen = ftxui::ScreenInteractive::Fullscreen();
 
-  auto button_quit = Button("Quit", screen.ExitLoopClosure());
+  auto button_quit = Button("Quit", global::tabs.screen.ExitLoopClosure());
 
   auto header = Renderer(button_quit, [&] {
     return vbox(
@@ -98,10 +132,9 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
   auto ButtonTest = Button("Yo", {});
   int tab_selected = 0;
   std::vector<std::string> tab_header_strings = {"ButtonTest", "Overview"};
-  auto tab_header = Toggle(tab_header_strings, &tab_selected);
-  auto tabs = Container::Tab({ButtonTest, overview_tab(games)}, &tab_selected);
 
-  screen.Loop(Container::Vertical({header, tab_header, tabs}));
+  global::tabs.add_tab("Test", ButtonTest);
+  global::tabs.add_tab("Overview", overview_tab(games));
 
   // screen.Loop(component);
 }
