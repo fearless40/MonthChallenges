@@ -16,41 +16,42 @@
 #include <string>
 #include <vector>
 namespace ui {
-struct AppTabs {
-  static std::vector<ftxui::Component> components;
-  static std::vector<std::string> labels;
-  static int selected;
-
-  static ftxui::Component tabs_c;
-  static ftxui::Component container_c;
-
-  static void add_tab(std::string label, ftxui::Component comp) {
-    components.push_back(comp);
-    labels.push_back(label);
-    container_c->Add(comp);
-    tabs_c = ftxui::Toggle(labels, &selected);
-    screen.ExitLoopClosure()();
-    screen.Loop(ftxui::Container::Vertical({header_c, tabs_c, container_c}));
-  }
-
-  static void remove_tab(std::string label) {
-    auto it = std::ranges::find(labels, label);
-    if (it != labels.end()) {
-      auto distance = std::distance(labels.begin(), it);
-      labels.erase(it);
-      components.erase(components.begin() + distance);
-      ftxui::ScreenInteractive::Active()->PostEvent(
-          ftxui::Event::Custom); // force redraw
-    }
-  }
-
-  static void set_active_tab(int tabID) { selected = tabID; }
-
-  static void
-};
 
 ftxui::Component ToggleButton(std::string const &label, int tabID,
-                              bool show_close = true) {
+                              bool show_close = true);
+
+namespace AppTabs {
+static int selected;
+
+static ftxui::Component tabs_c;
+static ftxui::Component container_c;
+
+static void add_tab(std::string label, bool show_close, ftxui::Component comp) {
+  tabs_c->Add(ToggleButton(label, show_close, tabs_c->ChildCount() + 1));
+  container_c->Add(comp);
+}
+
+// static void remove_tab(std::string label) {
+//   auto it = std::ranges::find(labels, label);
+//   if (it != labels.end()) {
+//     auto distance = std::distance(labels.begin(), it);
+//     labels.erase(it);
+//     components.erase(components.begin() + distance);
+//     ftxui::ScreenInteractive::Active()->PostEvent(
+//         ftxui::Event::Custom); // force redraw
+//   }
+// }
+
+static void set_active_tab(int tabID) { selected = tabID; }
+
+static void close_tab(int tabID) {
+  // remove tab
+}
+
+static void init() { selected = 0; }
+}; // namespace AppTabs
+ftxui::Component ToggleButton(std::string const &label, int tabID,
+                              bool show_close) {
   auto transform = [](const ftxui::EntryState &s) {
     auto element = ftxui::text(s.label);
     if (s.focused)
@@ -59,7 +60,7 @@ ftxui::Component ToggleButton(std::string const &label, int tabID,
   };
 
   ftxui::ButtonOption label_btn_option;
-  label_btn_option.label = label;
+  label_btn_option.label = label + "  ";
   label_btn_option.transform = transform;
   label_btn_option.on_click = std::bind(AppTabs::set_active_tab, tabID);
 
@@ -74,102 +75,98 @@ ftxui::Component ToggleButton(std::string const &label, int tabID,
   } else {
     return ftxui::Container::Horizontal({ftxui::Button(label_btn_option)});
   }
+}
 
-  namespace global {
-  AppTabs tabs;
-
-  }
-  void AiButtonClick(AIID id) {}
-  // std::accumulate(games.begin(), games.end(),
-  //                            std::chrono::milliseconds(0),
-  //                            [](std::chrono::milliseconds const &time,
-  //                               VirtualGames const &value) {
-  //                              return time +
-  //                              value.global_stats().total_time;
+void AiButtonClick(AIID id) {}
+// std::accumulate(games.begin(), games.end(),
+//                            std::chrono::milliseconds(0),
+//                            [](std::chrono::milliseconds const &time,
+//                               VirtualGames const &value) {
+//                              return time +
+//                              value.global_stats().total_time;
+//
+ftxui::Component overview_tab(std::vector<VirtualGames> const &games) {
+  using namespace ftxui;
+  // auto header = hbox({text(std::format("Total time: {}", 5)),
+  // separator(),
+  //                     text(std::format("Total AIs Run: {}",
+  //                     games.size()))});
   //
-  ftxui::Component overview_tab(std::vector<VirtualGames> const &games) {
-    using namespace ftxui;
-    // auto header = hbox({text(std::format("Total time: {}", 5)),
-    // separator(),
-    //                     text(std::format("Total AIs Run: {}",
-    //                     games.size()))});
-    //
-    // std::vector<std::string> ColHeaders = {"AI", "Average Guesses",
-    // "Won", "Lost",
-    //                                        "Repeats"};
-    // std::vector<std::vector<std::string>> rows;
-    // std::vector<Element> ai_details;
-    Components ai_buttons;
+  // std::vector<std::string> ColHeaders = {"AI", "Average Guesses",
+  // "Won", "Lost",
+  //                                        "Repeats"};
+  // std::vector<std::vector<std::string>> rows;
+  // std::vector<Element> ai_details;
+  Components ai_buttons;
 
-    for (auto const &game : games) {
-      std::string buttonlbl = std::format("AI {}", game.aiid());
+  for (auto const &game : games) {
+    std::string buttonlbl = std::format("AI {}", game.aiid());
 
-      auto button =
-          Button(buttonlbl, std::bind(AiButtonClick, game.aiid()),
-                 ButtonOption::Animated(Color::Palette256::BlueViolet));
-      auto button_row =
-          Renderer(button, [avg_guess = game.global_stats().average_guess_count,
-                            button]() {
-            return hbox({button->Render(), separator(),
-                         text(std::to_string(avg_guess)) | center | vcenter}) |
-                   border;
-          });
-      ai_buttons.push_back(button_row);
+    auto button = Button(buttonlbl, std::bind(AiButtonClick, game.aiid()),
+                         ButtonOption::Animated(Color::Palette256::BlueViolet));
+    auto button_row =
+        Renderer(button, [avg_guess = game.global_stats().average_guess_count,
+                          button]() {
+          return hbox({button->Render(), separator(),
+                       text(std::to_string(avg_guess)) | center | vcenter}) |
+                 border;
+        });
+    ai_buttons.push_back(button_row);
 
-      // rows.push_back({std::to_string(game.aiid()),
+    // rows.push_back({std::to_string(game.aiid()),
 
-      //                       VirtualGames::EndingState::sunk_all_ships)),
-      //                   std::to_string(game.global_stats().ending_state(
-      //                       VirtualGames::EndingState::too_many_guess)),
-      //                   std::to_string(game.global_stats().repeat_guess_count)});
-    };
+    //                       VirtualGames::EndingState::sunk_all_ships)),
+    //                   std::to_string(game.global_stats().ending_state(
+    //                       VirtualGames::EndingState::too_many_guess)),
+    //                   std::to_string(game.global_stats().repeat_guess_count)});
+  };
 
-    auto vert = Container::Vertical(ai_buttons);
-    // auto table = ftxui::Table(rows);
-    // table.SelectAll().Border(BorderStyle::LIGHT);
-    // auto fullview = Renderer(vert, [&]() {
-    //   Elements internal{header, separator(), text("AI Overview")};
-    //   for (auto &button : ai_buttons) {
-    //     internal.push_back(button->Render());
-    //   };
-    //   internal.push_back(separator());
-    //   // internal.push_back(table.Render());
-    //
-    //   return vbox(internal);
-    // });
-    //
-    return vert;
-  }
+  auto vert = Container::Vertical(ai_buttons);
+  // auto table = ftxui::Table(rows);
+  // table.SelectAll().Border(BorderStyle::LIGHT);
+  // auto fullview = Renderer(vert, [&]() {
+  //   Elements internal{header, separator(), text("AI Overview")};
+  //   for (auto &button : ai_buttons) {
+  //     internal.push_back(button->Render());
+  //   };
+  //   internal.push_back(separator());
+  //   // internal.push_back(table.Render());
+  //
+  //   return vbox(internal);
+  // });
+  //
+  return vert;
+}
 
-  void start(ProgramOptions::Options const &opt,
-             std::vector<VirtualGames> &games)
-  /*std::vector<TestRunner> &results*/ {
-    using namespace ftxui;
-    // Start display things on the screen usign fxtui
+void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
+/*std::vector<TestRunner> &results*/ {
+  using namespace ftxui;
 
-    std::string input_text;
-    // auto screen = ftxui::ScreenInteractive::Fullscreen();
+  // Start display things on the screen usign fxtui
+  auto screen = ftxui::ScreenInteractive::Fullscreen();
+  std::string input_text;
+  AppTabs::init();
+  // auto screen = ftxui::ScreenInteractive::Fullscreen();
 
-    auto button_quit = Button("Quit", global::tabs.screen.ExitLoopClosure());
+  auto button_quit = Button("Quit", screen.ExitLoopClosure());
 
-    auto header = Renderer(button_quit, [&] {
-      return vbox(
-          {hbox({text(std::format("Results from: {}", opt.program_to_test)) |
-                     hcenter | vcenter | bold,
-                 button_quit->Render() | xflex}),
-           separator()});
-    });
+  auto header = Renderer(button_quit, [&] {
+    return vbox(
+        {hbox({text(std::format("Results from: {}", opt.program_to_test)) |
+                   hcenter | vcenter | bold,
+               button_quit->Render() | xflex}),
+         separator()});
+  });
 
-    auto ButtonTest = Button("Yo", {});
-    int tab_selected = 0;
-    std::vector<std::string> tab_header_strings = {"ButtonTest", "Overview"};
+  auto ButtonTest = Button("Yo", {});
 
-    global::tabs.add_tab("Test", ButtonTest);
-    global::tabs.add_tab("Overview", overview_tab(games));
+  AppTabs::add_tab("Test", true, ButtonTest);
+  AppTabs::add_tab("Overview", false, overview_tab(games));
 
-    // screen.Loop(component);
-  }
-  // Use of this source code is governed by the MIT license that can be
-  // found in the LICENSE file.
+  screen.Loop(ftxui::Container::Vertical(
+      {header, AppTabs::tabs_c, AppTabs::container_c}));
+}
+// Use of this source code is governed by the MIT license that can be
+// found in the LICENSE file.
 
 } // namespace ui
