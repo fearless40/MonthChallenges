@@ -27,8 +27,13 @@ static ftxui::Component tabs_c;
 static ftxui::Component container_c;
 
 static void add_tab(std::string label, bool show_close, ftxui::Component comp) {
-  tabs_c->Add(ToggleButton(label, show_close, tabs_c->ChildCount() + 1));
-  container_c->Add(comp);
+  if (!tabs_c) {
+    tabs_c = ftxui::Container::Horizontal({ToggleButton(label, 0, show_close)});
+    container_c = ftxui::Container::Tab({comp}, &selected);
+  } else {
+    tabs_c->Add(ToggleButton(label, show_close, tabs_c->ChildCount() + 1));
+    container_c->Add(comp);
+  }
 }
 
 // static void remove_tab(std::string label) {
@@ -42,9 +47,25 @@ static void add_tab(std::string label, bool show_close, ftxui::Component comp) {
 //   }
 // }
 
-static void set_active_tab(int tabID) { selected = tabID; }
+static void set_active_tab(int tabID) {
+  selected = tabID;
+  container_c->SetActiveChild(container_c->ChildAt(selected));
+}
 
 static void close_tab(int tabID) {
+  if (container_c->ChildCount() == 1 || tabID >= container_c->ChildCount())
+    return;
+
+  auto childTab = container_c->ChildAt(tabID);
+  childTab->Detach();
+
+  container_c->SetActiveChild(container_c->ChildAt(tabID - 1));
+
+  auto childLabel = tabs_c->ChildAt(tabID);
+  childLabel->Detach();
+
+  tabs_c->SetActiveChild(tabs_c->ChildAt(tabID - 1));
+
   // remove tab
 }
 
@@ -60,7 +81,7 @@ ftxui::Component ToggleButton(std::string const &label, int tabID,
   };
 
   ftxui::ButtonOption label_btn_option;
-  label_btn_option.label = label + "  ";
+  label_btn_option.label = label + (show_close ? "  " : "");
   label_btn_option.transform = transform;
   label_btn_option.on_click = std::bind(AppTabs::set_active_tab, tabID);
 
@@ -70,10 +91,20 @@ ftxui::Component ToggleButton(std::string const &label, int tabID,
   close_btn_option.on_click = std::bind(AppTabs::close_tab, tabID);
 
   if (show_close) {
-    return ftxui::Container::Horizontal(
+    auto container = ftxui::Container::Horizontal(
         {ftxui::Button(label_btn_option), ftxui::Button(close_btn_option)});
+
+    return ftxui::Renderer(container, [container] {
+      return ftxui::hbox(container->Render(), ftxui::separator());
+    });
+
   } else {
-    return ftxui::Container::Horizontal({ftxui::Button(label_btn_option)});
+    auto container =
+        ftxui::Container::Horizontal({ftxui::Button(label_btn_option)});
+
+    return ftxui::Renderer(container, [container] {
+      return ftxui::hbox(container->Render(), ftxui::separator());
+    });
   }
 }
 
@@ -146,7 +177,6 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
   auto screen = ftxui::ScreenInteractive::Fullscreen();
   std::string input_text;
   AppTabs::init();
-  // auto screen = ftxui::ScreenInteractive::Fullscreen();
 
   auto button_quit = Button("Quit", screen.ExitLoopClosure());
 
@@ -160,8 +190,8 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
 
   auto ButtonTest = Button("Yo", {});
 
-  AppTabs::add_tab("Test", true, ButtonTest);
   AppTabs::add_tab("Overview", false, overview_tab(games));
+  AppTabs::add_tab("Test", true, ButtonTest);
 
   screen.Loop(ftxui::Container::Vertical(
       {header, AppTabs::tabs_c, AppTabs::container_c}));
