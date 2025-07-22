@@ -130,9 +130,11 @@ void AiButtonClick(AIID id) {}
 //
 ftxui::Component overview_tab(std::vector<VirtualGames> const &games) {
   using namespace ftxui;
-  auto header = hbox({text(std::format("Total time: {}", 5)), separator(),
-                      text(std::format("Total AIs Run: {}", games.size())),
-                      separator(), text(std::format("Iterations: {}", 10))});
+  auto header =
+      vbox({separator(),
+            hbox({text(std::format("Total time: {}", 5)), separator(),
+                  text(std::format("Total AIs Run: {}", games.size())),
+                  separator(), text(std::format("Iterations: {}", 10))})});
 
   std::vector<std::string> ColHeaders = {"AI", "Average Guesses", "Won", "Lost",
                                          "Repeats"};
