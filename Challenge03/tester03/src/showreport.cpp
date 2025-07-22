@@ -5,6 +5,7 @@
 #include "virtualgames.hpp"
 #include <atomic>
 #include <cstddef>
+#include <exception>
 #include <format>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
@@ -18,52 +19,71 @@
 #include <vector>
 namespace ui {
 
-ftxui::Component ToggleButton(std::string const &label, int tabID,
+ftxui::Component ToggleButton(std::string const &label, std::size_t tabID,
                               bool show_close = true);
 
 namespace AppTabs {
+
+struct TabMap {
+  std::size_t id;
+  ftxui::Component tab_button;
+  ftxui::Component tab_content;
+};
+
 static std::size_t selected;
 static int fake_selected;
+static size_t nextID;
 
 static ftxui::Component tabs_c;
 static ftxui::Component container_c;
+static std::vector<TabMap> tab_ID; // map of ID to position
 
 static void set_active_tab(std::size_t tabID) {
-  selected = tabID;
-  container_c->SetActiveChild(container_c->ChildAt(selected));
-}
-
-static void close_tab(std::size_t tabID) {
-  if (container_c->ChildCount() == 1 || tabID >= container_c->ChildCount())
-    return;
-
-  auto childTab = container_c->ChildAt(tabID);
-  childTab->Detach();
-
-  container_c->SetActiveChild(container_c->ChildAt(tabID - 1));
-
-  auto childLabel = tabs_c->ChildAt(tabID);
-  childLabel->Detach();
-
-  tabs_c->SetActiveChild(tabs_c->ChildAt(tabID - 1));
-
-  // remove tab
-}
-static void add_tab(std::string label, bool show_close, ftxui::Component comp) {
-  if (!tabs_c) {
-
-    tabs_c = ftxui::Container::Horizontal({ToggleButton(label, 0, show_close)});
-    container_c = ftxui::Container::Tab({comp}, &fake_selected);
-  } else {
-    tabs_c->Add(ToggleButton(label, show_close, tabs_c->ChildCount() + 1));
-    container_c->Add(comp);
-    AppTabs::set_active_tab(tabs_c->ChildCount() - 1);
+  auto found = std::ranges::find(tab_ID, tabID, &TabMap::id);
+  if (found != tab_ID.end()) {
+    container_c->SetActiveChild(found->tab_content);
   }
 }
 
-static void init() { selected = 0; }
+static void close_tab(std::size_t tabID) {
+  if (container_c->ChildCount() == 1)
+    return;
+
+  if (auto pairfind = std::ranges::find(tab_ID, tabID, &TabMap::id);
+      pairfind != tab_ID.end()) {
+    pairfind->tab_button->Detach();
+    pairfind->tab_content->Detach();
+
+    auto before = pairfind - 1;
+    container_c->SetActiveChild(before->tab_content);
+    tabs_c->SetActiveChild(before->tab_button);
+
+    tab_ID.erase(pairfind);
+  }
+}
+
+static void add_tab(std::string label, bool show_close, ftxui::Component comp) {
+  auto tbutton = ToggleButton(label, nextID, show_close);
+
+  if (!tabs_c) {
+    tabs_c = ftxui::Container::Horizontal({tbutton});
+    container_c = ftxui::Container::Tab({comp}, &fake_selected);
+  } else {
+    tabs_c->Add(tbutton);
+    container_c->Add(comp);
+    AppTabs::set_active_tab(tabs_c->ChildCount() - 1);
+  }
+
+  tab_ID.emplace_back(nextID, tbutton, comp);
+  ++nextID;
+}
+
+static void init() {
+  selected = 0;
+  nextID = 0;
+}
 }; // namespace AppTabs
-ftxui::Component ToggleButton(std::string const &label, int tabID,
+ftxui::Component ToggleButton(std::string const &label, std::size_t tabID,
                               bool show_close) {
   auto transform = [](const ftxui::EntryState &s) {
     auto element = ftxui::text(s.label);
@@ -181,12 +201,17 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
          separator()});
   });
 
-  auto ButtonTest = Button("Yo", [] {
-    AppTabs::add_tab("Garabage", true, ftxui::Button("Hello me", {}));
+  auto ButtonTest = Button("Yo", [&screen] {
+    AppTabs::add_tab(
+        "Garabage" + std::to_string(AppTabs::nextID + 1), true,
+        ftxui::Button("Hello me" + std::to_string(AppTabs::nextID + 1),
+                      std::bind(AiButtonClick, 1)));
   });
 
   AppTabs::add_tab("Overview", false, overview_tab(games));
   AppTabs::add_tab("Test", true, ButtonTest);
+  AppTabs::add_tab("Weird", true,
+                   ftxui::Button("Weird button", std::bind(AiButtonClick, 1)));
 
   screen.Loop(ftxui::Container::Vertical(
       {header, AppTabs::tabs_c, AppTabs::container_c}));
