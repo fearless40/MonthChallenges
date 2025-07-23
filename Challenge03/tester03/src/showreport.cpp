@@ -4,6 +4,7 @@
 #include "programoptions.hpp"
 #include "virtualgames.hpp"
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <exception>
 #include <format>
@@ -15,6 +16,7 @@
 #include <ftxui/dom/table.hpp>
 #include <iterator>
 
+#include <numeric>
 #include <string>
 #include <vector>
 namespace ui {
@@ -128,13 +130,24 @@ void AiButtonClick(AIID id) {}
 //                              return time +
 //                              value.global_stats().total_time;
 //
-ftxui::Component overview_tab(std::vector<VirtualGames> const &games) {
+ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
+                              ProgramOptions::Options const &options) {
   using namespace ftxui;
-  auto header =
-      vbox({separator(),
-            hbox({text(std::format("Total time: {}", 5)), separator(),
-                  text(std::format("Total AIs Run: {}", games.size())),
-                  separator(), text(std::format("Iterations: {}", 10))})});
+
+  auto total_time = std::accumulate(
+      games.begin(), games.end(), std::chrono::milliseconds{0},
+      [](std::chrono::milliseconds elapsed, const VirtualGames &game) {
+        return elapsed + std::chrono::duration_cast<std::chrono::milliseconds>(
+                             game.global_stats().total_time);
+      });
+
+  auto header = vbox(
+      {separator(),
+       hbox({text(std::format("Total time: {}",
+                              std::chrono::hh_mm_ss(total_time))),
+             separator(), text(std::format("Total AIs Run: {}", games.size())),
+             separator(),
+             text(std::format("Iterations: {}", options.nbrIterations))})});
 
   std::vector<std::string> ColHeaders = {"AI", "Average Guesses", "Won", "Lost",
                                          "Repeats"};
@@ -210,7 +223,7 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
                       std::bind(AiButtonClick, 1)));
   });
 
-  AppTabs::add_tab("Overview", false, overview_tab(games));
+  AppTabs::add_tab("Overview", false, overview_tab(games, opt));
   AppTabs::add_tab("Test", true, ButtonTest);
   AppTabs::add_tab("Weird", true,
                    ftxui::Button("Weird button", std::bind(AiButtonClick, 1)));
