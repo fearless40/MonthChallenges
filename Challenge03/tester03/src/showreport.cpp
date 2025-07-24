@@ -149,38 +149,63 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
              separator(),
              text(std::format("Iterations: {}", options.nbrIterations))})});
 
-  std::vector<std::string> ColHeaders = {"AI", "Average Guesses", "Won", "Lost",
-                                         "Repeats"};
-  std::vector<std::vector<std::string>> rows;
+  std::vector<std::vector<std::string>> data_table_rows;
   Components ai_buttons;
 
-  rows.push_back(std::move(ColHeaders));
+  data_table_rows.push_back(
+      {"AI", "Average Guesses", "Won", "Lost", "Repeats"});
+
+  std::vector<std::vector<Element>> ai_table_data;
+
+  ai_table_data.push_back({text("AI ID (click for details)"),
+                           text("Average Guess per game"),
+                           text("Graph based on lowest guess count")});
+
+  auto buttonCol = Container::Vertical({});
+  auto min_guesses =
+      std::ranges::min_element(games, std::less<>{},
+                               [](VirtualGames const &game) {
+                                 return game.global_stats().average_guess_count;
+                               })
+          ->global_stats()
+          .average_guess_count;
 
   for (auto const &game : games) {
-    std::string buttonlbl = std::format("AI {}", game.aiid());
 
-    auto button = Button(buttonlbl, std::bind(AiButtonClick, game.aiid()),
-                         ButtonOption::Animated(Color::Palette256::BlueViolet));
-    auto button_row =
-        Renderer(button, [avg_guess = game.global_stats().average_guess_count,
-                          button]() {
-          return hbox({button->Render(), separator(),
-                       text(std::to_string(avg_guess)) | center | vcenter}) |
-                 border;
-        });
-    ai_buttons.push_back(button_row);
+    auto ai_button =
+        Button(std::format("AI {}", game.aiid()),
+               std::bind(AiButtonClick, game.aiid()),
+               ButtonOption::Animated(Color::Palette256::BlueViolet));
+    buttonCol->Add(ai_button);
 
-    rows.push_back({std::to_string(game.aiid()),
-                    std::to_string(game.global_stats().average_guess_count),
-                    std::to_string(game.global_stats().ending_state(
-                        VirtualGames::EndingState::sunk_all_ships)),
-                    std::to_string(game.global_stats().ending_state(
-                        VirtualGames::EndingState::too_many_guess)),
-                    std::to_string(game.global_stats().repeat_guess_count)});
+    ai_table_data.push_back(
+        {ai_button->Render(),
+         text(std::to_string(game.global_stats().average_guess_count)),
+         gaugeRight(static_cast<float>(game.global_stats().average_guess_count -
+                                       min_guesses) /
+                    static_cast<float>(min_guesses))});
+
+    data_table_rows.push_back(
+        {std::to_string(game.aiid()),
+         std::to_string(game.global_stats().average_guess_count),
+         std::to_string(game.global_stats().ending_state(
+             VirtualGames::EndingState::sunk_all_ships)),
+         std::to_string(game.global_stats().ending_state(
+             VirtualGames::EndingState::too_many_guess)),
+         std::to_string(game.global_stats().repeat_guess_count)});
   };
 
-  auto vert = Container::Vertical(ai_buttons);
-  auto table = ftxui::Table(rows);
+  auto vert = Renderer(buttonCol, [ai_table_data] {
+    auto table = Table(ai_table_data);
+
+    table.SelectAll().Decorate(vcenter);
+    table.SelectAll().Decorate(hcenter);
+
+    table.SelectAll().Border(ftxui::LIGHT);
+    table.SelectAll().Separator(ftxui::LIGHT);
+    return table.Render();
+  });
+  auto table = ftxui::Table(data_table_rows);
   table.SelectAll().Border(BorderStyle::LIGHT);
   table.SelectAll().Decorate(vcenter);
   table.SelectAll().Decorate(hcenter);
