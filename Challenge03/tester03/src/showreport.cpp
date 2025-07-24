@@ -150,7 +150,6 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
              text(std::format("Iterations: {}", options.nbrIterations))})});
 
   std::vector<std::vector<std::string>> data_table_rows;
-  Components ai_buttons;
 
   data_table_rows.push_back(
       {"AI", "Average Guesses", "Won", "Lost", "Repeats"});
@@ -161,7 +160,7 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
                            text("Average Guess per game"),
                            text("Graph based on lowest guess count")});
 
-  auto buttonCol = Container::Vertical({});
+  auto ai_button_vert_container = Container::Vertical({});
   auto min_guesses =
       std::ranges::min_element(games, std::less<>{},
                                [](VirtualGames const &game) {
@@ -176,7 +175,7 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
         Button(std::format("AI {}", game.aiid()),
                std::bind(AiButtonClick, game.aiid()),
                ButtonOption::Animated(Color::Palette256::BlueViolet));
-    buttonCol->Add(ai_button);
+    ai_button_vert_container->Add(ai_button);
 
     ai_table_data.push_back(
         {ai_button->Render(),
@@ -195,16 +194,6 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
          std::to_string(game.global_stats().repeat_guess_count)});
   };
 
-  auto vert = Renderer(buttonCol, [ai_table_data] {
-    auto table = Table(ai_table_data);
-
-    table.SelectAll().Decorate(vcenter);
-    table.SelectAll().Decorate(hcenter);
-
-    table.SelectAll().Border(ftxui::LIGHT);
-    table.SelectAll().Separator(ftxui::LIGHT);
-    return table.Render();
-  });
   auto table = ftxui::Table(data_table_rows);
   table.SelectAll().Border(BorderStyle::LIGHT);
   table.SelectAll().Decorate(vcenter);
@@ -214,11 +203,19 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
   table.SelectAll().Border(LIGHT);
   table.SelectAll().Separator(LIGHT);
 
-  auto tableElement = table.Render();
+  return Renderer(ai_button_vert_container, [ai_button_vert_container,
+                                             tableElement = table.Render(),
+                                             ai_table_data, header] {
+    auto table = Table(ai_table_data);
 
-  return Renderer(vert, [header, vert, tableElement]() -> Element {
+    table.SelectAll().Decorate(vcenter);
+
+    table.SelectAll().Border(ftxui::LIGHT);
+    table.SelectAll().Separator(ftxui::LIGHT);
+    return table.Render();
     return vbox({header, separator(), text("AI Overview") | bold,
-                 vert->Render(), separator(), tableElement});
+                 ai_button_vert_container->Render(), separator(),
+                 text("Stat Overview"), tableElement});
   });
 }
 
