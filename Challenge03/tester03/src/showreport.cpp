@@ -67,21 +67,18 @@ static void close_tab(std::size_t tabID) {
 static void add_tab(std::string label, bool show_close, ftxui::Component comp) {
   auto tbutton = ToggleButton(label, nextID, show_close);
 
-  if (!tabs_c) {
-    tabs_c = ftxui::Container::Horizontal({tbutton});
-    container_c = ftxui::Container::Tab({comp}, &fake_selected);
-  } else {
-    tabs_c->Add(tbutton);
-    container_c->Add(comp);
-    AppTabs::set_active_tab(tabs_c->ChildCount() - 1);
-  }
-
+  tabs_c->Add(tbutton);
+  container_c->Add(comp);
   tab_ID.emplace_back(nextID, tbutton, comp);
+  AppTabs::set_active_tab(nextID);
+
   ++nextID;
 }
 
 static void init() {
   selected = 0;
+  tabs_c = ftxui::Container::Horizontal({});
+  container_c = ftxui::Container::Tab({}, &fake_selected);
   nextID = 0;
 }
 }; // namespace AppTabs
@@ -154,11 +151,11 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
   data_table_rows.push_back(
       {"AI", "Average Guesses", "Won", "Lost", "Repeats"});
 
-  std::vector<std::vector<Element>> ai_table_data;
+  std::vector<std::vector<Element>> ai_table_elements;
 
-  ai_table_data.push_back({text("AI ID (click for details)"),
-                           text("Average Guess per game"),
-                           text("Graph based on lowest guess count")});
+  ai_table_elements.push_back({text("AI ID (click for details)"),
+                               text("Average Guess per game"),
+                               text("Graph based on lowest guess count")});
 
   auto ai_button_vert_container = Container::Vertical({});
   auto min_guesses =
@@ -177,7 +174,7 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
                ButtonOption::Animated(Color::Palette256::BlueViolet));
     ai_button_vert_container->Add(ai_button);
 
-    ai_table_data.push_back(
+    ai_table_elements.push_back(
         {ai_button->Render(),
          text(std::to_string(game.global_stats().average_guess_count)),
          gaugeRight(static_cast<float>(game.global_stats().average_guess_count -
@@ -205,17 +202,16 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
 
   return Renderer(ai_button_vert_container, [ai_button_vert_container,
                                              tableElement = table.Render(),
-                                             ai_table_data, header] {
-    auto table = Table(ai_table_data);
+                                             ai_table_elements, header] {
+    auto table_interactive = Table(ai_table_elements);
 
-    table.SelectAll().Decorate(vcenter);
+    table_interactive.SelectAll().Decorate(vcenter);
 
-    table.SelectAll().Border(ftxui::LIGHT);
-    table.SelectAll().Separator(ftxui::LIGHT);
-    return table.Render();
-    return vbox({header, separator(), text("AI Overview") | bold,
-                 ai_button_vert_container->Render(), separator(),
-                 text("Stat Overview"), tableElement});
+    table_interactive.SelectAll().Border(ftxui::LIGHT);
+    table_interactive.SelectAll().Separator(ftxui::LIGHT);
+    return vbox({header, separator(), text("AI Avg Guess Overview") | bold,
+                 table_interactive.Render(), separator(), text("Stat Overview"),
+                 tableElement});
   });
 }
 
