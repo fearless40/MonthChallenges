@@ -13,7 +13,9 @@
 #include <ftxui/component/event.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/linear_gradient.hpp>
+#include <ftxui/dom/node.hpp>
 #include <ftxui/dom/table.hpp>
+#include <functional>
 #include <iterator>
 
 #include <numeric>
@@ -200,20 +202,92 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
   table.SelectAll().Border(LIGHT);
   table.SelectAll().Separator(LIGHT);
 
-  return Renderer(ai_button_vert_container, [ai_button_vert_container,
-                                             tableElement = table.Render(),
-                                             ai_table_elements, header] {
-    auto table_interactive = Table(ai_table_elements);
+  return Renderer(ai_button_vert_container,
+                  [ai_button_vert_container, tableElement = table.Render(),
+                   ai_table_elements = std::move(ai_table_elements), header] {
+                    auto table_interactive = Table(ai_table_elements);
 
-    table_interactive.SelectAll().Decorate(vcenter);
+                    table_interactive.SelectAll().Decorate(vcenter);
 
-    table_interactive.SelectAll().Border(ftxui::LIGHT);
-    table_interactive.SelectAll().Separator(ftxui::LIGHT);
-    return vbox({header, separator(), text("AI Avg Guess Overview") | bold,
-                 table_interactive.Render(), separator(), text("Stat Overview"),
-                 tableElement});
-  });
+                    table_interactive.SelectAll().Border(ftxui::LIGHT);
+                    table_interactive.SelectAll().Separator(ftxui::LIGHT);
+
+                    return vbox({header, separator(),
+                                 text("AI Avg Guess Overview") | bold,
+                                 table_interactive.Render(), separator(),
+                                 text("Stat Overview"), tableElement});
+                  });
 }
+
+ftxui::Component UI_Game_Overview(const VirtualGames &games) {
+  using namespace ftxui;
+
+  std::size_t *current_selected_game = new std::size_t(
+      0); // Memory leak on purpose. Will be cleaned up when the program ends.
+
+  struct SelectableCell : ComponentBase {
+    SelectableCell(std::size_t id, const std::string text,
+                   std::size_t *current_selection)
+        : game_id(id), cell_text(text), current_selected_id(current_selection) {
+    }
+
+    std::size_t game_id;
+    std::string cell_text;
+    std::size_t *current_selected_id;
+
+    Element OnRender() override {
+      if (*current_selected_id == game_id)
+        return text(cell_text) | ftxui::bgcolor(Color(40, 200, 80));
+      else
+        return text(cell_text);
+    }
+
+    bool OnEvent(Event event) override {
+      if (event.mouse().button == Mouse::Left &&
+              event.mouse().motion == Mouse::Pressed ||
+          event == Event::Return) {
+        *current_selected_id = game_id;
+      }
+      return true;
+    }
+  };
+  auto game_rows = Container::Vertical({});
+  std::vector<Elements> table_elements;
+  table_elements.push_back(
+      Elements{text("Round"), text("Status"), text("Guess #")});
+
+  std::size_t count{0};
+  for (auto &game : games.all_games()) {
+    ++count;
+    auto cellid = Make<SelectableCell>(count, std::to_string(count),
+                                       current_selected_game);
+    auto cellstatus = Make<SelectableCell>(
+        count, VirtualGames::EndingState_ToString(game.ending_state),
+        current_selected_game);
+    auto cellguess = Make<SelectableCell>(
+        count, std::to_string(game.guesses.size()), current_selected_game);
+
+    auto row = Container::Horizontal({cellid, cellstatus, cellguess});
+    game_rows->Add(row);
+
+    Elements tb_row{cellid->Render(), cellstatus->Render(),
+                    cellguess->Render()};
+    table_elements.push_back(std::move(tb_row));
+  }
+
+  auto left_table =
+      Renderer(game_rows, [&games, tbe = std::move(table_elements)] {
+        auto table = Table(tbe);
+        table.SelectAll().Border(ftxui::LIGHT);
+        table.SelectAll().Separator(ftxui::LIGHT);
+
+        return table.Render() | frame | vscroll_indicator;
+      });
+
+  auto right_details = Button("Details", std::bind(AiButtonClick, 1));
+  int *left_size = new int(30);
+  return ResizableSplitLeft(left_table, right_details, left_size);
+};
 
 void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
 /*std::vector<TestRunner> &results*/ {
@@ -242,9 +316,12 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
   });
 
   AppTabs::add_tab("Overview", false, overview_tab(games, opt));
-  AppTabs::add_tab("Test", true, ButtonTest);
-  AppTabs::add_tab("Weird", true,
-                   ftxui::Button("Weird button", std::bind(AiButtonClick, 1)));
+
+  std::size_t count = 0;
+  for (auto &game : games) {
+    AppTabs::add_tab(std::format("Run {}, AI ID {}", ++count, game.aiid()),
+                     true, UI_Game_Overview(game));
+  }
 
   screen.Loop(ftxui::Container::Vertical(
       {header, AppTabs::tabs_c, AppTabs::container_c}));

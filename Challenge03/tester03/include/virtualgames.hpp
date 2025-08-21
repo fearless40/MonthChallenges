@@ -37,6 +37,28 @@ public:
     none
   };
 
+  static constexpr const std::string EndingState_ToString(EndingState state) {
+    switch (state) {
+      using enum EndingState;
+    case timeout:
+      return "Time out";
+    case program_error:
+      return "Program Error";
+    case other:
+      return "Unknown";
+    case too_many_guess:
+      return "Too many guess";
+    case unable_read_output:
+      return "Unable to read program output";
+    case sunk_all_ships:
+      return "Sunk all ships";
+    case program_has_no_guesses:
+      return "Program has no guesses";
+    case none:
+      return "No state set";
+    }
+  };
+
   struct VirtualStats {
     TimeT shortest_answer{9999999};
     TimeT longest_answer{0};
