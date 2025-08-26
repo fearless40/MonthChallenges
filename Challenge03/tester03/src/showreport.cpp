@@ -3,10 +3,8 @@
 #include "ftxui/component/screen_interactive.hpp"
 #include "programoptions.hpp"
 #include "virtualgames.hpp"
-#include <atomic>
 #include <chrono>
 #include <cstddef>
-#include <exception>
 #include <format>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
@@ -16,18 +14,16 @@
 #include <ftxui/dom/node.hpp>
 #include <ftxui/dom/table.hpp>
 #include <functional>
-#include <iterator>
 
 #include <numeric>
 #include <string>
 #include <vector>
 namespace ui {
 
-ftxui::Component ToggleButton(std::string const &label, std::size_t tabID,
-                              bool show_close = true);
-
 namespace AppTabs {
 
+ftxui::Component TabButton(std::string const &label, std::size_t tabID,
+                           bool show_close = true);
 struct TabMap {
   std::size_t id;
   ftxui::Component tab_button;
@@ -67,7 +63,7 @@ static void close_tab(std::size_t tabID) {
 }
 
 static void add_tab(std::string label, bool show_close, ftxui::Component comp) {
-  auto tbutton = ToggleButton(label, nextID, show_close);
+  auto tbutton = AppTabs::TabButton(label, nextID, show_close);
 
   tabs_c->Add(tbutton);
   container_c->Add(comp);
@@ -83,9 +79,9 @@ static void init() {
   container_c = ftxui::Container::Tab({}, &fake_selected);
   nextID = 0;
 }
-}; // namespace AppTabs
-ftxui::Component ToggleButton(std::string const &label, std::size_t tabID,
-                              bool show_close) {
+
+ftxui::Component TabButton(std::string const &label, std::size_t tabID,
+                           bool show_close) {
   auto transform = [](const ftxui::EntryState &s) {
     auto element = ftxui::text(s.label);
     if (s.focused)
@@ -120,6 +116,8 @@ ftxui::Component ToggleButton(std::string const &label, std::size_t tabID,
     });
   }
 }
+
+}; // namespace AppTabs
 
 void AiButtonClick(AIID id) {}
 // std::accumulate(games.begin(), games.end(),
@@ -219,7 +217,7 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
                   });
 }
 
-ftxui::Component UI_Game_Overview(const VirtualGames &games) {
+ftxui::Component ai_tab(const VirtualGames &games) {
   using namespace ftxui;
 
   std::size_t *current_selected_game = new std::size_t(
@@ -300,11 +298,14 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
 
   auto button_quit = Button("Quit", screen.ExitLoopClosure());
 
-  auto header = Renderer(button_quit, [&] {
+  auto header_container = Container::Horizontal({button_quit});
+
+  auto header = Renderer(header_container, [&] {
     return vbox(
         {hbox({text(std::format("Results from: {}", opt.program_to_test)) |
                    hcenter | vcenter | bold,
-               button_quit->Render() | xflex}),
+               button_quit->Render() |
+                   size(ftxui::WIDTH, Constraint::EQUAL, 8)}),
          separator()});
   });
 
@@ -320,7 +321,7 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
   std::size_t count = 0;
   for (auto &game : games) {
     AppTabs::add_tab(std::format("Run {}, AI ID {}", ++count, game.aiid()),
-                     true, UI_Game_Overview(game));
+                     true, ai_tab(game));
   }
 
   screen.Loop(ftxui::Container::Vertical(
