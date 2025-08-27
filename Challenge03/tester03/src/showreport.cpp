@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstddef>
 #include <format>
+#include <ftxui/component/captured_mouse.hpp>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/component/event.hpp>
@@ -15,10 +16,15 @@
 #include <ftxui/dom/table.hpp>
 #include <functional>
 
+#include <fstream>
+#include <ios>
+#include <iostream>
 #include <numeric>
 #include <string>
 #include <vector>
 namespace ui {
+
+std::fstream log("data.txt", std::ios_base::out);
 
 namespace AppTabs {
 
@@ -138,14 +144,19 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
                              game.global_stats().total_time);
       });
 
-  auto header = vbox(
-      {separator(),
-       hbox({text(std::format("Total time: {}",
-                              std::chrono::hh_mm_ss(total_time))),
-             separator(), text(std::format("Total AIs Run: {}", games.size())),
-             separator(),
-             text(std::format("Iterations: {}", options.nbrIterations))})});
+  // clang-format off
+  auto header = vbox({
+      separator(),
+      hbox({
+         text(std::format("Total time: {}", std::chrono::hh_mm_ss(total_time))),
+         separator(),
+         text(std::format("Total AIs Run: {}", games.size())),
+         separator(),
+         text(std::format("Iterations: {}", options.nbrIterations))
+      })
+   });
 
+  // clang-format on
   std::vector<std::vector<std::string>> data_table_rows;
 
   data_table_rows.push_back(
@@ -232,24 +243,46 @@ ftxui::Component ai_tab(const VirtualGames &games) {
     std::size_t game_id;
     std::string cell_text;
     std::size_t *current_selected_id;
+    Box box;
 
-    Element OnRender() override {
+    Element OnRender() final {
+      Element element;
+
       if (*current_selected_id == game_id)
-        return text(cell_text) | ftxui::bgcolor(Color(40, 200, 80));
+        element = text(cell_text + "::" + std::to_string(game_id)) |
+                  ftxui::bgcolor(Color(40, 200, 80)) | focus;
       else
-        return text(cell_text);
+        element = text(cell_text + "::" + std::to_string(game_id));
+
+      element |= reflect(box);
+      return element;
     }
 
-    bool OnEvent(Event event) override {
-      if (event.mouse().button == Mouse::Left &&
-              event.mouse().motion == Mouse::Pressed ||
+    bool Focusable() const final { return true; }
+
+    bool OnEvent(Event event) final {
+      bool mouse_hover =
+          box.Contain(event.mouse().x, event.mouse().y) && CaptureMouse(event);
+
+      if ((event.mouse().button == Mouse::Left &&
+           event.mouse().motion == Mouse::Pressed && mouse_hover) ||
           event == Event::Return) {
+        // log << "B:current_selected_id=" << *current_selected_id
+        // << " clicked id: " << game_id << '\n';
         *current_selected_id = game_id;
+        // log << "A:current_selected_id=" << *current_selected_id
+        //     << " clicked id: " << game_id << '\n';
+        TakeFocus();
+        return true;
       }
-      return true;
+      return false;
     }
   };
-  auto game_rows = Container::Vertical({});
+
+  int *selected_x = new int(0);
+  auto game_rows = Container::Vertical({}, selected_x);
+
+  int *selected_y = new int(0);
   std::vector<Elements> table_elements;
   table_elements.push_back(
       Elements{text("Round"), text("Status"), text("Guess #")});
@@ -257,6 +290,7 @@ ftxui::Component ai_tab(const VirtualGames &games) {
   std::size_t count{0};
   for (auto &game : games.all_games()) {
     ++count;
+    // log << count << '\n';
     auto cellid = Make<SelectableCell>(count, std::to_string(count),
                                        current_selected_game);
     auto cellstatus = Make<SelectableCell>(
@@ -265,7 +299,8 @@ ftxui::Component ai_tab(const VirtualGames &games) {
     auto cellguess = Make<SelectableCell>(
         count, std::to_string(game.guesses.size()), current_selected_game);
 
-    auto row = Container::Horizontal({cellid, cellstatus, cellguess});
+    auto row =
+        Container::Horizontal({cellid, cellstatus, cellguess}, selected_y);
     game_rows->Add(row);
 
     Elements tb_row{cellid->Render(), cellstatus->Render(),
@@ -273,14 +308,13 @@ ftxui::Component ai_tab(const VirtualGames &games) {
     table_elements.push_back(std::move(tb_row));
   }
 
-  auto left_table =
-      Renderer(game_rows, [&games, tbe = std::move(table_elements)] {
-        auto table = Table(tbe);
-        table.SelectAll().Border(ftxui::LIGHT);
-        table.SelectAll().Separator(ftxui::LIGHT);
+  auto left_table = Renderer(game_rows, [tbe = std::move(table_elements)] {
+    auto table = Table(tbe);
+    table.SelectAll().Border(ftxui::LIGHT);
+    table.SelectAll().Separator(ftxui::LIGHT);
 
-        return table.Render() | frame | vscroll_indicator;
-      });
+    return table.Render() | vscroll_indicator | focusPosition(0, 0) | frame;
+  });
 
   auto right_details = Button("Details", std::bind(AiButtonClick, 1));
   int *left_size = new int(30);
@@ -300,21 +334,17 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
 
   auto header_container = Container::Horizontal({button_quit});
 
+  // clang-format off
   auto header = Renderer(header_container, [&] {
-    return vbox(
-        {hbox({text(std::format("Results from: {}", opt.program_to_test)) |
-                   hcenter | vcenter | bold,
-               button_quit->Render() |
-                   size(ftxui::WIDTH, Constraint::EQUAL, 8)}),
-         separator()});
+    return vbox( {
+         hbox({
+            text(std::format("Results from: {}", opt.program_to_test)) | hcenter | vcenter | bold,
+            button_quit->Render() | size(ftxui::WIDTH, Constraint::EQUAL, 8)
+         }),
+         separator()
+         }) ;
   });
-
-  auto ButtonTest = Button("Yo", [&screen] {
-    AppTabs::add_tab(
-        "Garabage" + std::to_string(AppTabs::nextID + 1), true,
-        ftxui::Button("Hello me" + std::to_string(AppTabs::nextID + 1),
-                      std::bind(AiButtonClick, 1)));
-  });
+  // clang-format on
 
   AppTabs::add_tab("Overview", false, overview_tab(games, opt));
 
