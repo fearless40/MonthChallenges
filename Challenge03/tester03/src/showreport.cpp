@@ -211,21 +211,18 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
   table.SelectAll().Border(LIGHT);
   table.SelectAll().Separator(LIGHT);
 
-  return Renderer(ai_button_vert_container,
-                  [ai_button_vert_container, tableElement = table.Render(),
-                   ai_table_elements = std::move(ai_table_elements), header] {
-                    auto table_interactive = Table(ai_table_elements);
+  return Renderer(ai_button_vert_container, [&] {
+    auto table_interactive = Table(ai_table_elements);
 
-                    table_interactive.SelectAll().Decorate(vcenter);
+    table_interactive.SelectAll().Decorate(vcenter);
 
-                    table_interactive.SelectAll().Border(ftxui::LIGHT);
-                    table_interactive.SelectAll().Separator(ftxui::LIGHT);
+    table_interactive.SelectAll().Border(ftxui::LIGHT);
+    table_interactive.SelectAll().Separator(ftxui::LIGHT);
 
-                    return vbox({header, separator(),
-                                 text("AI Avg Guess Overview") | bold,
-                                 table_interactive.Render(), separator(),
-                                 text("Stat Overview"), tableElement});
-                  });
+    return vbox({header, separator(), text("AI Avg Guess Overview") | bold,
+                 table_interactive.Render(), separator(), text("Stat Overview"),
+                 table.Render()});
+  });
 }
 
 ftxui::Component ai_tab(const VirtualGames &games) {
@@ -249,10 +246,9 @@ ftxui::Component ai_tab(const VirtualGames &games) {
       Element element;
 
       if (*current_selected_id == game_id)
-        element = text(cell_text + "::" + std::to_string(game_id)) |
-                  ftxui::bgcolor(Color(40, 200, 80)) | focus;
+        element = text(cell_text) | ftxui::bgcolor(Color(40, 200, 80)) | focus;
       else
-        element = text(cell_text + "::" + std::to_string(game_id));
+        element = text(cell_text);
 
       element |= reflect(box);
       return element;
@@ -267,11 +263,7 @@ ftxui::Component ai_tab(const VirtualGames &games) {
       if ((event.mouse().button == Mouse::Left &&
            event.mouse().motion == Mouse::Pressed && mouse_hover) ||
           event == Event::Return) {
-        // log << "B:current_selected_id=" << *current_selected_id
-        // << " clicked id: " << game_id << '\n';
         *current_selected_id = game_id;
-        // log << "A:current_selected_id=" << *current_selected_id
-        //     << " clicked id: " << game_id << '\n';
         TakeFocus();
         return true;
       }
@@ -324,7 +316,6 @@ ftxui::Component ai_tab(const VirtualGames &games) {
 void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
 /*std::vector<TestRunner> &results*/ {
   using namespace ftxui;
-
   // Start display things on the screen usign fxtui
   auto screen = ftxui::ScreenInteractive::Fullscreen();
   std::string input_text;
@@ -338,8 +329,9 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
   auto header = Renderer(header_container, [&] {
     return vbox( {
          hbox({
-            text(std::format("Results from: {}", opt.program_to_test)) | hcenter | vcenter | bold,
-            button_quit->Render() | size(ftxui::WIDTH, Constraint::EQUAL, 8)
+            text(std::format("Results from: {}", opt.program_to_test)) |
+            hcenter | vcenter | bold, button_quit->Render() |
+            size(ftxui::WIDTH, Constraint::EQUAL, 8)
          }),
          separator()
          }) ;
@@ -357,7 +349,5 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
   screen.Loop(ftxui::Container::Vertical(
       {header, AppTabs::tabs_c, AppTabs::container_c}));
 }
-// Use of this source code is governed by the MIT license that can be
-// found in the LICENSE file.
 
 } // namespace ui
