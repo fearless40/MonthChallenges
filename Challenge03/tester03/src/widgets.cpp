@@ -1,0 +1,150 @@
+
+#include <ftxui/component/captured_mouse.hpp>
+#include <ftxui/component/component.hpp>
+#include <ftxui/component/component_base.hpp>
+#include <ftxui/component/event.hpp>
+#include <ftxui/dom/direction.hpp>
+#include <ftxui/dom/elements.hpp>
+#include <ftxui/dom/linear_gradient.hpp>
+#include <ftxui/dom/node.hpp>
+#include <ftxui/dom/table.hpp>
+#include <ftxui/screen/string.hpp>
+
+namespace Widgets {
+using namespace ftxui;
+class SelectableTable : public ComponentBase {
+
+private:
+  std::size_t m_total_rows;
+  std::size_t m_current_selected_row;
+
+  Components m_cells;
+  Component m_rows;
+  std::vector<std::string> m_headers;
+
+  struct SelectableCell : ComponentBase {
+    SelectableCell(std::size_t id, const std::string text,
+                   std::size_t *current_selection)
+        : row_id(id), cell_text(text), current_selected_id(current_selection) {}
+
+    std::size_t row_id;
+    std::string cell_text;
+    std::size_t *current_selected_id;
+    Box box;
+
+    Element OnRender() final {
+      Element element;
+
+      if (*current_selected_id == row_id)
+        element = text(cell_text) | ftxui::bgcolor(Color(40, 200, 80)) | focus;
+      else
+        element = text(cell_text);
+
+      element |= reflect(box);
+      const int change = 10;
+      box.x_min -= change;
+      box.x_max += change;
+      box.y_min -= change;
+      box.y_max += change;
+      return element;
+    }
+
+    bool Focusable() const final { return true; }
+
+    bool OnEvent(Event event) final {
+      bool mouse_hover =
+          box.Contain(event.mouse().x, event.mouse().y) && CaptureMouse(event);
+
+      if ((event.mouse().button == Mouse::Left &&
+           event.mouse().motion == Mouse::Pressed && mouse_hover) ||
+          event == Event::Return) {
+        *current_selected_id = row_id;
+        TakeFocus();
+        return true;
+      }
+      return false;
+    }
+  };
+
+public:
+  int left_size;
+  SelectableTable(std::vector<std::string> &header,
+                  std::vector<std::string> const &data)
+      : m_headers(std::move(header)), m_total_rows(0), left_size(40),
+        m_current_selected_row(0) {
+    m_rows = Container::Vertical({});
+    m_total_rows = data.size() / m_headers.size();
+    m_cells.reserve(data.size());
+    std::size_t cols_count = m_headers.size();
+
+    // log << "Header Size: " << m_headers.size() << '\n';
+    // log << "Data Size: " << data.size() << '\n';
+    // log << "Number of rows: " << m_total_rows << std::endl;
+
+    for (std::size_t row_id = 0; row_id < m_total_rows; ++row_id) {
+      Component row = Container::Horizontal({});
+      for (std::size_t col_id = 0; col_id < cols_count; ++col_id) {
+        auto cell =
+            Make<SelectableCell>(row_id, data[(cols_count * row_id) + col_id],
+                                 &m_current_selected_row);
+        m_cells.push_back(cell);
+        row->Add(cell);
+      }
+      m_rows->Add(row);
+    }
+    // log << "Finished with constructor." << std::endl;
+  }
+
+  Element OnRender() override {
+
+    std::vector<Elements> table_elements;
+    Elements headers;
+    // Header of table
+    std::transform(m_headers.begin(), m_headers.end(),
+                   std::back_inserter(headers),
+                   [](auto const &value) { return text(value); });
+
+    // log << "On render: after header manipulation." << std::endl;
+    table_elements.push_back(std::move(headers));
+
+    const auto col_count = m_headers.size();
+
+    for (std::size_t row = 0; row < m_total_rows; ++row) {
+      Elements row_values;
+      for (std::size_t col = 0; col < col_count; ++col) {
+        row_values.push_back(m_cells[(row * col_count) + col]->Render());
+      }
+      table_elements.push_back(std::move(row_values));
+    }
+    // log << "After making table of elements." << std::endl;
+
+    auto table = Table(table_elements);
+    table.SelectAll().Border(ftxui::LIGHT);
+    table.SelectAll().Separator(ftxui::LIGHT);
+    return table.Render() | vscroll_indicator |
+           focusPosition(0, m_current_selected_row * 2) | frame;
+  }
+
+  bool OnEvent(Event e) override {
+    if (e == Event::ArrowDown) {
+      if (m_current_selected_row < m_total_rows) {
+        ++m_current_selected_row;
+      }
+      return true;
+    }
+
+    else if (e == Event::ArrowUp) {
+      if (m_current_selected_row != 0)
+        --m_current_selected_row;
+      return true;
+    }
+
+    else
+      return m_rows->OnEvent(e);
+  }
+
+  bool Focusable() const final { return true; }
+
+  const std::size_t get_selected_row() { return m_current_selected_row; }
+};
+} // namespace Widgets

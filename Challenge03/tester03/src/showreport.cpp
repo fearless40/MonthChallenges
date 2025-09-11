@@ -3,6 +3,7 @@
 #include "ftxui/component/screen_interactive.hpp"
 #include "programoptions.hpp"
 #include "virtualgames.hpp"
+#include "widgets.hpp"
 #include <chrono>
 #include <cstddef>
 #include <format>
@@ -16,15 +17,18 @@
 #include <ftxui/dom/node.hpp>
 #include <ftxui/dom/table.hpp>
 #include <ftxui/screen/string.hpp>
-#include <functional>
 
+#include <algorithm>
 #include <fstream>
+#include <functional>
 #include <ios>
 #include <iostream>
 #include <iterator>
 #include <numeric>
+#include <ostream>
 #include <string>
 #include <vector>
+
 namespace ui {
 
 std::fstream log("data.txt", std::ios_base::out);
@@ -228,134 +232,7 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
   });
 }
 
-namespace Widgets {
-using namespace ftxui;
-class SelectableTable : public ComponentBase {
-
-private:
-  std::size_t m_total_rows;
-  std::size_t m_current_selected_row;
-
-  Components m_cells;
-  Component m_rows;
-  std::vector<std::string> m_headers;
-
-  struct SelectableCell : ComponentBase {
-    SelectableCell(std::size_t id, const std::string text,
-                   std::size_t *current_selection)
-        : row_id(id), cell_text(text), current_selected_id(current_selection) {}
-
-    std::size_t row_id;
-    std::string cell_text;
-    std::size_t *current_selected_id;
-    Box box;
-
-    Element OnRender() final {
-      Element element;
-
-      if (*current_selected_id == row_id)
-        element = text(cell_text) | ftxui::bgcolor(Color(40, 200, 80)) | focus;
-      else
-        element = text(cell_text);
-
-      element |= reflect(box);
-      const int change = 10;
-      box.x_min -= change;
-      box.x_max += change;
-      box.y_min -= change;
-      box.y_max += change;
-      return element;
-    }
-
-    bool Focusable() const final { return true; }
-
-    bool OnEvent(Event event) final {
-      bool mouse_hover =
-          box.Contain(event.mouse().x, event.mouse().y) && CaptureMouse(event);
-
-      if ((event.mouse().button == Mouse::Left &&
-           event.mouse().motion == Mouse::Pressed && mouse_hover) ||
-          event == Event::Return) {
-        *current_selected_id = row_id;
-        TakeFocus();
-        return true;
-      }
-      return false;
-    }
-  };
-
-public:
-  int left_size;
-  SelectableTable(std::vector<std::string> &&header,
-                  std::vector<std::string> const &data)
-      : m_headers(header), m_total_rows(data.size() / header.size()) {
-    m_rows = Container::Vertical({});
-    m_cells.reserve(data.size());
-    std::size_t cols_count = m_headers.size();
-
-    for (std::size_t row_id = 0; row_id < m_total_rows; ++row_id) {
-      Component row = Container::Horizontal({});
-      for (std::size_t col_id = 0; col_id < cols_count; ++col_id) {
-        auto cell =
-            Make<SelectableCell>(row_id, data[(cols_count * row_id) + col_id],
-                                 &m_current_selected_row);
-        m_cells.push_back(cell);
-        row->Add(cell);
-      }
-      m_rows->Add(row);
-    }
-  }
-
-  Element OnRender() override {
-
-    std::vector<Elements> table_elements;
-    Elements headers;
-    // Header of table
-    std::transform(m_headers.begin(), m_headers.end(),
-                   std::back_inserter(headers),
-                   [](auto &value) { return text(value); });
-
-    table_elements.push_back(std::move(headers));
-
-    const auto col_count = m_headers.size();
-
-    for (std::size_t row = 0; row < m_total_rows; ++row) {
-      Elements row_values;
-      for (std::size_t col = 0; col < col_count; ++col)
-        row_values.push_back(m_cells[(row * col_count) + col]->Render());
-      table_elements.push_back(std::move(row_values));
-    }
-
-    auto table = Table(table_elements);
-    table.SelectAll().Border(ftxui::LIGHT);
-    table.SelectAll().Separator(ftxui::LIGHT);
-    return table.Render() | vscroll_indicator |
-           focusPosition(0, m_current_selected_row * 2) | frame;
-  }
-
-  bool OnEvent(Event e) override {
-    if (e == Event::ArrowDown) {
-      if (m_current_selected_row < m_total_rows) {
-        ++m_current_selected_row;
-      }
-      return true;
-    }
-
-    else if (e == Event::ArrowUp) {
-      if (m_current_selected_row != 0)
-        --m_current_selected_row;
-      return true;
-    }
-
-    else
-      return m_rows->OnEvent(e);
-  }
-
-  bool Focusable() const final { return true; }
-
-  const std::size_t get_selected_row() { return m_current_selected_row; }
-};
-} // namespace Widgets
+// namespace Widgets
 
 ftxui::Component game_tab(const VirtualGames::Game &game) {
 
@@ -364,143 +241,6 @@ ftxui::Component game_tab(const VirtualGames::Game &game) {
 
 ftxui::Component ai_tab(const VirtualGames &games) {
   using namespace ftxui;
-
-  class LeftSideComponent : public ComponentBase {
-  private:
-    std::size_t current_selected_game;
-    int current_row;
-    int current_col;
-
-    const VirtualGames &games;
-
-    Components m_cells;
-    Component m_rows;
-    Component m_splitter;
-    Component m_right_side;
-
-    struct SelectableCell : ComponentBase {
-      SelectableCell(std::size_t id, const std::string text,
-                     std::size_t *current_selection)
-          : game_id(id), cell_text(text),
-            current_selected_id(current_selection) {}
-
-      std::size_t game_id;
-      std::string cell_text;
-      std::size_t *current_selected_id;
-      Box box;
-
-      Element OnRender() final {
-        Element element;
-
-        if (*current_selected_id == game_id)
-          element =
-              text(cell_text) | ftxui::bgcolor(Color(40, 200, 80)) | focus;
-        else
-          element = text(cell_text);
-
-        element |= reflect(box);
-        const int change = 10;
-        box.x_min -= change;
-        box.x_max += change;
-        box.y_min -= change;
-        box.y_max += change;
-        return element;
-      }
-
-      bool Focusable() const final { return true; }
-
-      bool OnEvent(Event event) final {
-        bool mouse_hover = box.Contain(event.mouse().x, event.mouse().y) &&
-                           CaptureMouse(event);
-
-        if ((event.mouse().button == Mouse::Left &&
-             event.mouse().motion == Mouse::Pressed && mouse_hover) ||
-            event == Event::Return) {
-          *current_selected_id = game_id;
-          TakeFocus();
-          return true;
-        }
-        return false;
-      }
-    };
-
-  public:
-    int left_size;
-    LeftSideComponent(const VirtualGames &games_data)
-        : games(games_data), current_selected_game(0), current_col(0),
-          current_row(0), left_size(30) {
-      m_rows = Container::Vertical({}, &current_row);
-
-      std::size_t count{0};
-      for (auto &game : games.all_games()) {
-        ++count;
-        auto cellid = Make<SelectableCell>(count, std::to_string(count),
-                                           &current_selected_game);
-        auto cellstatus = Make<SelectableCell>(
-            count, VirtualGames::EndingState_ToString(game.ending_state),
-            &current_selected_game);
-        auto cellguess = Make<SelectableCell>(
-            count, std::to_string(game.guesses.size()), &current_selected_game);
-
-        auto row = Container::Horizontal({cellid, cellstatus, cellguess},
-                                         &current_col);
-        m_cells.push_back(cellid);
-        m_cells.push_back(cellstatus);
-        m_cells.push_back(cellguess);
-        m_rows->Add(row);
-      }
-    }
-
-    Element OnRender() override {
-
-      std::vector<Elements> table_elements;
-
-      // Header of table
-      table_elements.push_back(
-          Elements{text("Round"), text("Status"), text("Guess #")});
-
-      const auto row_count = games.all_games().size();
-
-      for (std::size_t row = 0; row < row_count; ++row) {
-        Elements row_values;
-        for (std::size_t col = 0; col < 3; ++col)
-          row_values.push_back(m_cells[(row * 3) + col]->Render());
-        table_elements.push_back(std::move(row_values));
-      }
-
-      auto table = Table(table_elements);
-      table.SelectAll().Border(ftxui::LIGHT);
-      table.SelectAll().Separator(ftxui::LIGHT);
-      return table.Render() | vscroll_indicator |
-             focusPosition(current_col, current_selected_game * 2) | frame;
-    }
-
-    bool OnEvent(Event e) override {
-      if (e == Event::ArrowDown) {
-        if (current_selected_game < games.all_games().size()) {
-          ++current_selected_game;
-        }
-        return true;
-      }
-
-      else if (e == Event::ArrowUp) {
-        if (current_selected_game != 1)
-          --current_selected_game;
-        return true;
-      }
-
-      else
-        return m_rows->OnEvent(e);
-    }
-
-    bool Focusable() const final { return true; }
-
-    const VirtualGames::Game &get_selected_game() {
-      return games.all_games()[current_selected_game];
-    }
-
-    std::size_t get_selected_row() const { return current_selected_game; }
-  };
 
   std::vector<std::string> data;
   std::vector<std::string> headers{"Round", "Status", "Guess Count"};
@@ -513,10 +253,8 @@ ftxui::Component ai_tab(const VirtualGames &games) {
     data.push_back(std::to_string(game.guesses.size()));
   }
 
-  auto left_side =
-      ftxui::Make<Widgets::SelectableTable>(std::move(headers), data);
-
-  // auto left_side = ftxui::Make<LeftSideComponent>(games);
+  log << "Before making widget.\n";
+  auto left_side = ftxui::Make<Widgets::SelectableTable>(headers, data);
 
   auto show_active_game_tab = [left_side]() {
     // Make_tab(left_side->get_selected_game)
