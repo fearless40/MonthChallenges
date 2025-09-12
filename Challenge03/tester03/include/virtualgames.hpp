@@ -131,10 +131,31 @@ public:
 
   enum class Guess_Stats_Result { unknown, miss, hit, invalid, sunk, repeat };
 
+  static constexpr const std::string
+  Guess_Stats_as_string(Guess_Stats_Result result) {
+    switch (result) {
+      using enum Guess_Stats_Result;
+    case unknown:
+      return "Unkown";
+    case miss:
+      return "Miss";
+    case hit:
+      return "Hit";
+    case invalid:
+      return "Invalid";
+    case sunk:
+      return "Sunk";
+    case repeat:
+      return "Repeat";
+    }
+  }
   struct Guess_Stats {
     battleship::RowCol guess;
     TimeT elapsed_time;
     Guess_Stats_Result result{Guess_Stats_Result::unknown};
+    constexpr auto result_as_string() const {
+      return Guess_Stats_as_string(result);
+    }
   };
 
   struct Game {

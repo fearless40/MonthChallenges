@@ -1,4 +1,4 @@
-#include <chrono>
+#include "RowCol.hpp"
 #include <ftxui/component/captured_mouse.hpp>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
@@ -8,6 +8,7 @@
 #include <ftxui/dom/linear_gradient.hpp>
 #include <ftxui/dom/node.hpp>
 #include <ftxui/dom/table.hpp>
+#include <ftxui/screen/color.hpp>
 #include <ftxui/screen/string.hpp>
 
 namespace Widgets {
@@ -25,6 +26,7 @@ private:
   int fake_selected;
   size_t nextID;
 
+  Component vert_c;
   ftxui::Component tabs_c;
   ftxui::Component container_c;
   std::vector<TabMap> tab_ID; // map of ID to position
@@ -32,7 +34,9 @@ private:
 public:
   DynamicTab() : selected(0), nextID(0) {
     tabs_c = ftxui::Container::Horizontal({});
+
     container_c = ftxui::Container::Tab({}, &fake_selected);
+    vert_c = Container::Vertical({tabs_c, container_c});
   }
 
   void set_active_tab(std::size_t tabID) {
@@ -110,19 +114,21 @@ public:
 
   Element OnRender() final {
     // clang-format off
-    return vbox({
+    return Renderer(vert_c, [this]{ 
+         return vbox({
          ftxui::separator(),
          tabs_c->Render(),
          separatorDouble(),
          container_c->Render()
       });
+      })->Render();
       //clang-format on
   }
 
    bool Focusable() const final { return true; }
 
    bool OnEvent(Event e) override { 
-      return tabs_c->OnEvent(e);
+      return vert_c->OnEvent(e);
    }
 };
 
@@ -183,9 +189,9 @@ public:
 
   public:
     int left_size;
-    SelectableTable(std::vector<std::string> &header,
+    SelectableTable(std::vector<std::string> &&header,
                     std::vector<std::string> const &data)
-        : m_headers(std::move(header)), m_total_rows(0), left_size(40),
+        : m_headers(header), m_total_rows(0), left_size(40),
           m_current_selected_row(0) {
       m_rows = Container::Vertical({});
       m_total_rows = data.size() / m_headers.size();
@@ -262,4 +268,35 @@ public:
 
     const std::size_t get_selected_row() { return m_current_selected_row; }
   };
-} // namespace Widgets
+
+
+
+class GameBoard : ComponentBase { 
+public:
+   struct DisplayPoint { 
+      battleship::RowCol pos;
+      Color color; 
+   };
+
+   
+   std::size_t m_row_count;
+
+   std::size_t m_col_count;
+
+   bool show_borders;
+   Color border_color;
+   bool bold_col_headers;
+   bool bold_row_headers;
+
+
+   Element OnRender() final { 
+
+   
+   }
+
+private: 
+   Component m_rows; 
+   std::vector<DisplayPoint> m_display; 
+
+};
+}// namespace Widgets
