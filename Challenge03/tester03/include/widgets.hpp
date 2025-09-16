@@ -337,7 +337,7 @@ public:
 
       for( std::size_t row =0; row < m_row_count; ++row) { 
          Elements row_component; 
-         row_component.push_back( text( std::to_string(row+1)) | bold); 
+         row_component.push_back( text( std::to_string(row)) | bold); 
          for( std::size_t col = 0; col < m_col_count; ++col ) { 
             row_component.push_back( m_values[row*m_col_count+col]->Render() );
          }
