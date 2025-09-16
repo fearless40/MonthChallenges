@@ -1,7 +1,9 @@
 #include "showreport.hpp"
+#include "RowCol.hpp"
 #include "ftxui/component/component_options.hpp"
 #include "ftxui/component/screen_interactive.hpp"
 #include "programoptions.hpp"
+#include "ship.hpp"
 #include "virtualgames.hpp"
 #include "widgets.hpp"
 #include <chrono>
@@ -134,7 +136,27 @@ ftxui::Component overview_tab(std::vector<VirtualGames> const &games,
 
 // namespace Widgets
 
-ftxui::Component game_tab(const VirtualGames::Game &game) {
+ftxui::Color get_color_on_status(VirtualGames::Guess_Stats_Result result) {
+  using Color = ftxui::Color;
+  switch (result) {
+    using enum VirtualGames::Guess_Stats_Result;
+  case hit:
+    return Color(0, 255, 0);
+  case miss:
+    return Color(255, 0, 0);
+  case invalid:
+    return Color(255, 255, 0);
+  case sunk:
+    return Color(0, 0, 255);
+  case unknown:
+    return Color(100, 200, 90);
+  default:
+    return Color(255, 255, 255);
+  }
+};
+
+ftxui::Component game_tab(const VirtualGames &definition,
+                          const VirtualGames::Game &game) {
 
   using namespace ftxui;
 
@@ -160,7 +182,42 @@ ftxui::Component game_tab(const VirtualGames::Game &game) {
     ++count;
   }
 
-  return Make<Widgets::SelectableTable>(std::move(headers), values);
+  auto right_side =
+      std::make_shared<Widgets::SelectableTable>(std::move(headers), values);
+
+  auto left_side = std::make_shared<Widgets::GameBoard>();
+
+  auto splitter =
+      ResizableSplitLeft(right_side, left_side, &right_side->left_size);
+
+  return Renderer(splitter, [splitter, right_side, left_side, &game,
+                             &definition]() {
+    std::vector<Widgets::GameBoard::DisplayPoint> points;
+    auto active_point = game.guesses[right_side->get_selected_row()];
+    for (std::size_t row = 0; row < definition.layout().nbrRows.size; ++row) {
+      for (std::size_t col = 0; col < definition.layout().nbrCols.size; ++col) {
+        auto status = battleship::shot_at(
+            game.ships, battleship::RowCol{
+                            battleship::Row{static_cast<unsigned short>(row)},
+                            battleship::Col{static_cast<unsigned short>(col)}});
+
+        if (active_point.guess.row.size == row &&
+            active_point.guess.col.size == col) {
+          points.emplace_back(get_color_on_status(active_point.result),
+                              Color(0, 0, 0), "X");
+        } else if (status.id.size != 0) {
+          points.emplace_back(Color(200, 200, 80), Color(0, 0, 0, 0),
+                              std::to_string(status.id.size));
+        } else {
+          points.emplace_back(Color(0, 0, 0), Color(0, 0, 0, 0), " ");
+        }
+      }
+    }
+
+    left_side->set_board(std::move(points), definition.layout().nbrCols.size);
+
+    return splitter->Render();
+  });
 };
 
 ftxui::Component ai_tab(const VirtualGames &games) {
@@ -181,10 +238,11 @@ ftxui::Component ai_tab(const VirtualGames &games) {
       std::make_shared<Widgets::SelectableTable>(std::move(headers), data);
 
   auto show_active_game_tab = [left_side, &games]() {
-    Tabs->add_tab(std::format("AI: {}, Game {}", games.aiid(),
-                              left_side->get_selected_row() + 1),
-                  true,
-                  game_tab(games.all_games()[left_side->get_selected_row()]));
+    Tabs->add_tab(
+        std::format("AI: {}, Game {}", games.aiid(),
+                    left_side->get_selected_row() + 1),
+        true,
+        game_tab(games, games.all_games()[left_side->get_selected_row()]));
 
     // Make_tab(left_side->get_selected_game)
   };
@@ -225,7 +283,6 @@ ftxui::Component ai_tab(const VirtualGames &games) {
 };
 
 void OpenAITab(const VirtualGames &game) {
-
   Tabs->add_tab(std::format("AI ID {}", game.aiid()), true, ai_tab(game));
 }
 
@@ -257,8 +314,8 @@ void start(ProgramOptions::Options const &opt, std::vector<VirtualGames> &games)
 
   // std::size_t count = 0;
   // for (auto &game : games) {
-  //   Tabs->add_tab(std::format("Run {}, AI ID {}", ++count, game.aiid()),
-  //   true,
+  //   Tabs->add_tab(std::format("Run {}, AI ID {}", ++count,
+  //   game.aiid()), true,
   //                 ai_tab(game));
   // }
 

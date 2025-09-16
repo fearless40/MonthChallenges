@@ -1,4 +1,6 @@
 #include "RowCol.hpp"
+#include "baseconv.hpp"
+#include <cstddef>
 #include <ftxui/component/captured_mouse.hpp>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
@@ -10,6 +12,8 @@
 #include <ftxui/dom/table.hpp>
 #include <ftxui/screen/color.hpp>
 #include <ftxui/screen/string.hpp>
+#include <iterator>
+#include <string>
 
 namespace Widgets {
 using namespace ftxui;
@@ -248,7 +252,7 @@ public:
 
     bool OnEvent(Event e) override {
       if (e == Event::ArrowDown) {
-        if (m_current_selected_row < m_total_rows) {
+        if (m_current_selected_row < m_total_rows - 1) {
           ++m_current_selected_row;
         }
         return true;
@@ -271,31 +275,146 @@ public:
 
 
 
-class GameBoard : ComponentBase { 
+class GameBoard : public ComponentBase { 
 public:
    struct DisplayPoint { 
-      battleship::RowCol pos;
-      Color color; 
+      Color color {255,255,255};
+      Color bgColor { 0,0,0 };
+      std::string value;
    };
 
-   
-   std::size_t m_row_count;
 
-   std::size_t m_col_count;
+
+   int x_selected {0}; 
+   int y_selected {0};
+   std::size_t m_row_count {0};
+
+   std::size_t m_col_count {0}; 
 
    bool show_borders;
    Color border_color;
    bool bold_col_headers;
    bool bold_row_headers;
 
+   void set_board( std::vector<DisplayPoint> && data, std::size_t col_size ) { 
+      m_col_count = col_size;
+      m_row_count = data.size() / col_size; 
+
+      // Reset ftxui data
+      m_rows = nullptr; 
+      m_rows = Container::Vertical({}, &x_selected); 
+      m_values.clear(); 
+
+      for( std::size_t row = 0; row < m_row_count; ++row) { 
+         auto row_component = Container::Horizontal({}, &y_selected); 
+         for(std::size_t col = 0; col < m_col_count; ++col) { 
+            m_values.push_back( Renderer([cell = data[row*m_col_count + col]](bool focused) { 
+               if( focused ) 
+                  return text(cell.value) | color( cell.color) | bgcolor(cell.bgColor) | bold; 
+         
+               else 
+                  return text(cell.value) | color( cell.color) | bgcolor( cell.bgColor ); 
+            }));
+            row_component->Add(m_values.back());
+         }
+         m_rows->Add(row_component);
+      }
+   }
+
+
 
    Element OnRender() final { 
 
-   
+      if( m_rows == nullptr)  return text("Empty board."); 
+         
+         std::vector<Elements> table; 
+
+         table.push_back(Elements{});
+         table[0].push_back(text(" "));
+      for( std::size_t col = 0; col < m_col_count; ++col) { 
+         table[0].push_back( text(base26::to_string( col ))); 
+      }
+
+      for( std::size_t row =0; row < m_row_count; ++row) { 
+         Elements row_component; 
+         row_component.push_back( text( std::to_string(row+1)) | bold); 
+         for( std::size_t col = 0; col < m_col_count; ++col ) { 
+            row_component.push_back( m_values[row*m_col_count+col]->Render() );
+         }
+         table.push_back(std::move( row_component )); 
+      }
+
+      auto table_ren = Table( table ); 
+
+      table_ren.SelectAll().Separator(LIGHT) ;
+      
+
+      table_ren.SelectRow(0).BorderBottom(BorderStyle::DOUBLE);
+      table_ren.SelectColumn(0).BorderRight(DOUBLE); 
+
+      return table_ren.Render(); 
+     
+  
+
+      // std::vector<Elements> table; 
+      // const auto grid_size = 3;
+      //
+      // const auto cell_height = 3;
+      // const auto cell_width = 2;
+      //
+      // auto sizeit = []( Element && el ) -> auto{ 
+      //    return el   | size(WIDTH, EQUAL, grid_size + 1) | size(HEIGHT, EQUAL, grid_size) | hcenter | vcenter;
+      //  };
+      //
+      // auto lc = Color(90,90,90);
+      //
+      //    table.push_back(Elements{});
+      //    table[0].push_back(sizeit(text(" ")));
+      // for( std::size_t col = 0; col < m_col_count; ++col) { 
+      //    table[0].push_back( text("│\n│\n│") | flex_shrink | color(lc) );
+      //    table[0].push_back( sizeit(text(base26::to_string( col ))) | bold ); 
+      // }
+      //
+      // for( std::size_t row =0; row < m_row_count; ++row) { 
+      //    {
+      //       Elements divider; 
+      //       auto div = row == 0 ? "═" : "─";
+      //
+      //       for( std::size_t col = 0; col < m_col_count; ++col ) { 
+      //          if( col == 0 ) div = " "; 
+      //          else               if( col == 1 ) div = "║";
+      //          else 
+      //       div = row == 0 ? "═" : "─";
+      //          divider.push_back( text(div) | color(lc) | flex_shrink);
+      //       }
+      //       table.push_back(std::move(divider));
+      //    }
+      //    Elements row_component; 
+      //    row_component.push_back( text( std::to_string(row+1)) | bold); 
+      //    row_component.push_back( text("║") | flex_shrink | color(lc) );
+      //    for( std::size_t col = 0; col < m_col_count; ++col ) { 
+      //       row_component.push_back( sizeit(m_values[row*m_col_count+col]->Render()) );
+      //       row_component.push_back( text("│") | flex_shrink | color(lc) );
+      //    }
+      //    table.push_back(std::move( row_component )); 
+      // }
+      //
+      // return gridbox(table); 
+      //
+
+
+
+   }
+
+   bool Focusable() const final { return true;} 
+
+   bool OnEvent(Event e) override { 
+      return m_rows->OnEvent(e);
    }
 
 private: 
    Component m_rows; 
+   Components m_values; 
    std::vector<DisplayPoint> m_display; 
 
 };
