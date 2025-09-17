@@ -136,25 +136,21 @@ public:
    }
 };
 
-  class SelectableTable : public ComponentBase {
-  private:
-    std::size_t m_total_rows;
-    std::size_t m_current_selected_row;
 
-    Components m_cells;
-    Component m_rows;
-    std::vector<std::string> m_headers;
+class SelectableCell : public ComponentBase {
 
-    struct SelectableCell : ComponentBase {
-      SelectableCell(std::size_t id, const std::string text,
-                     std::size_t *current_selection)
-          : row_id(id), cell_text(text),
-            current_selected_id(current_selection) {}
-
+private:
       std::size_t row_id;
-      std::string cell_text;
+      std::size_t user_value; 
       std::size_t *current_selected_id;
+      std::string cell_text; 
       Box box;
+
+public:
+      SelectableCell(std::size_t id, const std::string text, std::size_t user_val, 
+                     std::size_t *current_selection)
+          : row_id(id), cell_text(text), user_value(user_val),
+            current_selected_id(current_selection) {}
 
       Element OnRender() final {
         Element element;
@@ -177,21 +173,49 @@ public:
       bool Focusable() const final { return true; }
 
       bool OnEvent(Event event) final {
-        bool mouse_hover = box.Contain(event.mouse().x, event.mouse().y) &&
-                           CaptureMouse(event);
+         if( event.is_mouse() ) return OnMouse(event); 
 
-        if ((event.mouse().button == Mouse::Left &&
-             event.mouse().motion == Mouse::Pressed && mouse_hover) ||
-            event == Event::Return) {
+         if( !Focused() ) return false; 
+
+         if( event == Event::Return) {
           *current_selected_id = row_id;
           TakeFocus();
           return true;
         }
         return false;
       }
-    };
+     
 
-  public:
+      bool OnMouse( Event event ) { 
+         bool mouse_hover = box.Contain(event.mouse().x, event.mouse().y) &&
+                           CaptureMouse(event);
+
+         if ((event.mouse().button == Mouse::Left &&
+             event.mouse().motion == Mouse::Pressed && mouse_hover) )
+         {
+            TakeFocus();
+            *current_selected_id = row_id; 
+            return true;
+         }
+
+         return false;
+      }
+};
+
+   
+class SelectableTable : public ComponentBase { 
+  private:
+    std::size_t m_total_rows;
+    std::size_t m_current_selected_row;
+
+    Components m_cells;
+    Component m_rows;
+    std::vector<std::string> m_headers;
+
+      Box m_box;
+
+
+public:
     int left_size;
     SelectableTable(std::vector<std::string> &&header,
                     std::vector<std::string> const &data)
@@ -210,7 +234,7 @@ public:
         Component row = Container::Horizontal({});
         for (std::size_t col_id = 0; col_id < cols_count; ++col_id) {
           auto cell =
-              Make<SelectableCell>(row_id, data[(cols_count * row_id) + col_id],
+              Make<SelectableCell>(row_id, data[(cols_count * row_id) + col_id],0,
                                    &m_current_selected_row);
           m_cells.push_back(cell);
           row->Add(cell);
@@ -219,6 +243,10 @@ public:
       }
       // log << "Finished with constructor." << std::endl;
     }
+
+    void set_data( std::vector<std::string> const & data ) { 
+
+   }
 
     Element OnRender() override {
 
@@ -246,27 +274,60 @@ public:
       auto table = Table(table_elements);
       table.SelectAll().Border(ftxui::LIGHT);
       table.SelectAll().Separator(ftxui::LIGHT);
-      return table.Render() | vscroll_indicator |
-             focusPosition(0, m_current_selected_row * 2) | frame;
+      auto elements =  table.Render() | vscroll_indicator |
+             focusPosition(0, m_current_selected_row * 2) | frame | flex_shrink;
+
+      elements |= reflect(m_box); 
+      return elements; 
     }
 
+    void advance_active_row( int amount ) { 
+      
+      m_current_selected_row = (std::size_t) std::max(0, std::min( (int)m_total_rows-1, (int)m_current_selected_row + amount)); 
+
+      auto child =  m_rows->ChildAt(m_current_selected_row);
+      if( child && child->Focusable() ) { 
+         m_rows->SetActiveChild(child);
+      }
+
+   }
+
+
     bool OnEvent(Event e) override {
+      if( e.is_mouse() ) return OnMouseEvent(e);
+
+
+      if( !Active() || !ActiveChild() ) return false;
+
       if (e == Event::ArrowDown) {
-        if (m_current_selected_row < m_total_rows - 1) {
-          ++m_current_selected_row;
-        }
-        return true;
+         advance_active_row(1);
+         return true;
       }
 
       else if (e == Event::ArrowUp) {
-        if (m_current_selected_row != 0)
-          --m_current_selected_row;
-        return true;
+         advance_active_row(-1);
+         return true;
       }
 
       else
         return m_rows->OnEvent(e);
     }
+
+    bool OnMouseEvent(Event e) { 
+
+     if( !m_box.Contain( e.mouse().x, e.mouse().y ) && !Active() ) return false; 
+
+      if( e.mouse().button == Mouse::WheelUp ) { 
+         advance_active_row(-1);     
+      }
+      else if( e.mouse().button == Mouse::WheelDown ) {
+         advance_active_row(1);
+      }
+
+
+      return m_rows->OnEvent(e);
+
+   }
 
     bool Focusable() const final { return true; }
 
