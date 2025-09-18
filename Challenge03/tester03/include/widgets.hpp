@@ -1,4 +1,3 @@
-#include "RowCol.hpp"
 #include "baseconv.hpp"
 #include <cstddef>
 #include <ftxui/component/captured_mouse.hpp>
@@ -175,13 +174,12 @@ public:
       bool OnEvent(Event event) final {
          if( event.is_mouse() ) return OnMouse(event); 
 
-         if( !Focused() ) return false; 
 
-         if( event == Event::Return) {
-          *current_selected_id = row_id;
-          TakeFocus();
-          return true;
-        }
+         // if( event == Event::Return) {
+         //  *current_selected_id = row_id;
+         //  TakeFocus();
+         //  return true;
+      //}       
         return false;
       }
      
@@ -239,7 +237,8 @@ public:
           m_cells.push_back(cell);
           row->Add(cell);
         }
-        m_rows->Add(row);
+        Add(row);
+        // m_rows->Add(row);
       }
       // log << "Finished with constructor." << std::endl;
     }
@@ -285,16 +284,22 @@ public:
       
       m_current_selected_row = (std::size_t) std::max(0, std::min( (int)m_total_rows-1, (int)m_current_selected_row + amount)); 
 
-      auto child =  m_rows->ChildAt(m_current_selected_row);
+      auto child =  ChildAt(m_current_selected_row);
       if( child && child->Focusable() ) { 
-         m_rows->SetActiveChild(child);
+         SetActiveChild(child);
       }
 
    }
 
 
     bool OnEvent(Event e) override {
-      if( e.is_mouse() ) return OnMouseEvent(e);
+      for( auto & child : children_ ) { 
+         if(child->Focusable() ) {
+            auto val = child->OnEvent(e);
+            if(val) return true; 
+         }
+      }
+if( e.is_mouse() ) return OnMouseEvent(e);
 
 
       if( !Active() || !ActiveChild() ) return false;
@@ -308,24 +313,35 @@ public:
          advance_active_row(-1);
          return true;
       }
+      else if (e ==Event::PageDown) {
+         advance_active_row(5);
+         return true;
+      }
+      else if (e == Event::PageUp) { 
+         advance_active_row(-5);
+         return true;
+      }
 
-      else
-        return m_rows->OnEvent(e);
+      // else
+      //   return m_rows->OnEvent(e);
+      return false;
     }
 
     bool OnMouseEvent(Event e) { 
 
-     if( !m_box.Contain( e.mouse().x, e.mouse().y ) && !Active() ) return false; 
+     if( !m_box.Contain( e.mouse().x, e.mouse().y )  ) return false; 
 
       if( e.mouse().button == Mouse::WheelUp ) { 
          advance_active_row(-1);     
+         return true;
       }
       else if( e.mouse().button == Mouse::WheelDown ) {
          advance_active_row(1);
+         return true; 
       }
 
-
-      return m_rows->OnEvent(e);
+     return false; 
+      // return m_rows->OnEvent(e);
 
    }
 
