@@ -431,7 +431,30 @@ public:
 
       return table_ren.Render(); 
      
-  
+      std::vector<Elements> ele; 
+      
+      const std::size_t row_elements = 2*m_row_count+1; 
+      const std::size_t col_elements = 2*m_col_count+1; 
+
+      ele.reserve(row_elements); 
+      
+      for( std::size_t y=0 ; y < row_elements; ++y) { 
+         Elements row; 
+         row.reserve((2* m_col_count) + 1); 
+         for( std::size_t x=0; x < col_elements; ++x) { 
+            if( y % 2 == 0 ) { // Border  
+                              if (y == 2 ) { // Doubler border 
+                  row.push_back( separatorCharacter("=") | automerge );
+                  contiune;
+               } 
+               if( y == 0 ) { // Skip outer Border
+                  row.push_back(emptyElement());
+                  continue;
+               }
+               row.push_back(separatorCharacter("-") | automerge); 
+            }
+            if( x%2 == 0 ) { //Vertical border 
+               if( x 
 
       // std::vector<Elements> table; 
       // const auto grid_size = 3;
