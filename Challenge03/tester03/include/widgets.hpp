@@ -429,7 +429,7 @@ public:
       table_ren.SelectRow(0).BorderBottom(BorderStyle::DOUBLE);
       table_ren.SelectColumn(0).BorderRight(DOUBLE); 
 
-      return table_ren.Render(); 
+      //return table_ren.Render(); 
      
       std::vector<Elements> ele; 
       
@@ -438,24 +438,46 @@ public:
 
       ele.reserve(row_elements); 
       
+      auto lc = Color(90,90,90);
+      auto sz = size(ftxui::WIDTH, Constraint::EQUAL, 3) | size(ftxui::HEIGHT, Constraint::EQUAL, 3) | hcenter | vcenter ; 
+
       for( std::size_t y=0 ; y < row_elements; ++y) { 
          Elements row; 
          row.reserve((2* m_col_count) + 1); 
          for( std::size_t x=0; x < col_elements; ++x) { 
             if( y % 2 == 0 ) { // Border  
-                              if (y == 2 ) { // Doubler border 
-                  row.push_back( separatorCharacter("=") | automerge );
-                  contiune;
+               if (y == 2 ) { // Doubler border 
+                  row.push_back( separatorCharacter("═") | color(lc) | automerge );
                } 
-               if( y == 0 ) { // Skip outer Border
+               else if( y == 0 ) { // Skip outer Border
                   row.push_back(emptyElement());
-                  continue;
                }
-               row.push_back(separatorCharacter("-") | automerge); 
+               else 
+                  row.push_back(separatorCharacter("─") | color(lc) | automerge); 
+            } else {
+               if( x%2 ==0 ) {  // vertical border
+                  if( x == 0 ) {
+                     row.push_back(emptyElement()); 
+                  }
+                  else if( x == 2 ) { 
+                     row.push_back( separatorCharacter("║") | color(lc) | automerge);
+                  }
+                  else {
+                     row.push_back( separatorCharacter("│") | color(lc) | automerge ); 
+                  }
+               }
+               if( x % 2 == 1 ) {
+                  if( x == 1 ) { 
+                     
+                  row.push_back(  m_values[x/2 + ((y/2) * m_col_count)]->Render() | sz );
+               };
             }
-            if( x%2 == 0 ) { //Vertical border 
-               if( x 
+}
+         ele.push_back(row);
+      }
 
+
+      return gridbox(ele);
       // std::vector<Elements> table; 
       // const auto grid_size = 3;
       //
