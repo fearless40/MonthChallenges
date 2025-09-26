@@ -10,6 +10,7 @@
 #include <charconv>
 #include <chrono>
 #include <cstddef>
+#include <fstream>
 #include <iostream>
 #include <numeric>
 #include <optional>
@@ -20,15 +21,11 @@
 
 const size_t MAX_ITERATIONS_PER_THREAD = 1500;
 
-void stripn(unsigned char *buff, std::size_t size) {
-  for (std::size_t i = 0; i < size; ++i) {
-    if (buff[i] != '\n')
-      std::cout << buff[i];
-  }
-  std::cout << ',';
-}
+void write_file_csv(ProgramOptions::Options opt,
+                    std::vector<VirtualGames> &&games);
 
-;
+void write_file_report(ProgramOptions::Options opt,
+                       std::vector<VirtualGames> &&games);
 
 std::optional<std::size_t>
 get_ai_number_from_app(ProgramOptions::Options const &opt) {
@@ -68,7 +65,8 @@ get_requested_ai(ProgramOptions::Options const &opt) {
   if (opt.all_ai) {
     auto ai_count = get_ai_number_from_app(opt);
     if (ai_count) {
-      // std::cout << "Total number of AIs found: " << ai_count.value() << '\n';
+      // std::cout << "Total number of AIs found: " << ai_count.value() <<
+      // '\n';
       ai_ids.resize(ai_count.value());
       std::iota(ai_ids.begin(), ai_ids.end(), 0);
       return ai_ids;
@@ -78,7 +76,8 @@ get_requested_ai(ProgramOptions::Options const &opt) {
     }
   } else {
     // std::cout << "Test AI: " << opt.ai_id_to_test << '\n';
-    // std::cout << "Total number of ais: " << opt.ai_id_to_test.size() << '\n';
+    // std::cout << "Total number of ais: " << opt.ai_id_to_test.size() <<
+    // '\n';
     return opt.ai_id_to_test;
   }
   return {};
@@ -189,42 +188,94 @@ bool test(ProgramOptions::Options const &opt) {
     thread.join();
   }
 
-  if (opt.result_file == "") {
-    std::vector<VirtualGames> games;
-    for (auto const &runner : tests) {
-      // std::cout << "\e[0m";
-      // std::cout << output_header() << '\n';
-      // output_report(std::cout, );
-      games.push_back(std::move(runner.games()));
-    }
-    ui::start(opt, games);
-
-  } else {
-    // std::ofstream file{opt.result_file, std::ios::trunc};
-    // if (file) {
-    //   std::cout << "Writing report to: " << opt.result_file << '\n';
-    //   auto const time = std::chrono::current_zone()->to_local(
-    //       std::chrono::system_clock::now());
-    //   file << "Testing report on " << std::format("{:%m-%d-%Y %X}",
-    //   time)
-    //        << '\n';
-    //   for (auto const &runner : tests) {
-    //     file << output_header() << '\n';
-    //     output_report(file, runner.games());
-    //   }
-    //   file << output_header() << "\nGames:\n";
-    //   for (auto const &runner : tests) {
-    //     output_games(file, runner.games().all_games());
-    //   }
-    //
-    //   file << '\n' << output_header() << "\nMoves:\n";
-    //   // for( auto const & runner : test) {
-    //   //   output_moves(file, runner.games() );
-    //   // }
-    // }
+  std::vector<VirtualGames> games;
+  for (auto const &runner : tests) {
+    games.push_back(std::move(runner.games()));
   }
 
+  if (opt.result_file == "") {
+    ui::start(opt, games);
+  } else {
+    std::cout << "Writing file with type: ";
+    if (opt.filemode == ProgramOptions::FileOutput::report) {
+      std::cout << "report" << '\n' << "file name: " << opt.result_file << '\n';
+      write_file_report(opt, std::move(games));
+    } else {
+      std::cout << "csv" << '\n' << "file name: " << opt.result_file << '\n';
+      write_file_csv(opt, std::move(games));
+    }
+  }
   return true;
+}
+
+void write_file_csv(ProgramOptions::Options opt,
+                    std::vector<VirtualGames> &&games) {
+  std::ofstream file{opt.result_file, std::ios::trunc};
+  if (!file) {
+    std::cout << "Unable to open file for writing: " << opt.result_file << '\n';
+    return;
+  }
+
+  std::array<std::string, 7> headers{"AI ID", "GAME ID", "ROUND ID", "GUESS ID",
+                                     "GUESS", "RESULT",  "TIME"};
+
+  for (std::size_t count = 0; count < 7; ++count) {
+    file << headers[count];
+    if (count != 6)
+      file << ',';
+  }
+  file << '\n';
+
+  for (std::size_t gameid = 0; gameid < games.size(); ++gameid) {
+    auto &game = games[gameid];
+    for (std::size_t roundid = 0; roundid < game.all_games().size();
+         ++roundid) {
+      auto &round = game.all_games()[roundid];
+      for (std::size_t guessid = 0; guessid < round.guesses.size(); ++guessid) {
+        auto &guess = round.guesses[guessid];
+        file << game.aiid() << ',';
+        file << gameid << ',';
+        file << roundid << ',';
+        file << guessid << ',';
+        file << guess.guess.as_base26_fmt() << ',';
+        file << guess.result_as_string() << ',';
+        file << guess.elapsed_time << ',';
+        file << '\n';
+      }
+    }
+  }
+  file.close();
+}
+
+void write_file_report(ProgramOptions::Options opt,
+                       std::vector<VirtualGames> &&games) {
+  std::ofstream file{opt.result_file, std::ios::trunc};
+  if (!file) {
+    std::cout << "Unable to open the file for writing: " << opt.result_file
+              << '\n';
+    return;
+  }
+
+  std::cout << "Writing report to: " << opt.result_file << '\n';
+  auto const time =
+      std::chrono::current_zone()->to_local(std::chrono::system_clock::now());
+  file << "Testing report on " << std::format("{:%m-%d-%Y %X}", time) << '\n';
+
+  report::print_colors_off();
+  for (auto &game : games) {
+    std::size_t runID = 0;
+    report::print_global_stats(file, game);
+
+    for (auto &run : game.all_games()) {
+      file << '\n';
+      file << "** Run: " << runID++ << '\n';
+      report::print_game_board(file, game.layout(), run.ships);
+      report::print_all_moves(file, run);
+      file << '\n';
+    }
+  }
+
+  file.close();
 }
 
 void output_report(std::ostream &s, VirtualGames const &games) {

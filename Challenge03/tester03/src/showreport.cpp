@@ -182,6 +182,9 @@ ftxui::Component game_tab(const VirtualGames &definition,
     ++count;
   }
 
+  // auto filter = ftxui::Dropdown(
+  // {"No filter", "Repeat", "Missed", "Hit", "Sunk", "Out of bounds"}, blah);
+
   auto right_side =
       std::make_shared<Widgets::SelectableTable>(std::move(headers), values);
 

@@ -11,6 +11,10 @@ ProgramOptions::Options parse(int argc, char *argv[]) {
 
   ProgramOptions::Options opt;
 
+  auto match_report_type = [](const std::string &arg) {
+    return arg == "csv" || arg == "report";
+  };
+
   auto run_cli =
       (clipp::command("run").set(opt.mode, ProgramOptions::RunMode::test),
        (option("--iterations") & value("iterations", opt.nbrIterations) %
@@ -26,6 +30,14 @@ ProgramOptions::Options parse(int argc, char *argv[]) {
        (option("-o", "--output") &
         value("report file", opt.result_file) %
             "Write results to a file. Default is results.txt"),
+       (option("--fileformat") &
+        (value(match_report_type, "csv or filter")
+             .call([&](std::string const &value) {
+               if (value == "csv")
+                 opt.filemode = ProgramOptions::FileOutput::csv;
+               else
+                 opt.filemode = ProgramOptions::FileOutput::report;
+             }))),
        (option("--layout") &
         value("layout file", opt.ship_layout_file) %
             "Load a layout file to test non random ship placements"),
@@ -46,17 +58,25 @@ ProgramOptions::Options parse(int argc, char *argv[]) {
 
   if (!parse(argc, argv, cli)) {
     std::cout << clipp::usage_lines(cli, "tester03") << '\n';
+    opt.mode = ProgramOptions::RunMode::error;
     return opt;
   }
 
   if (opt.mode == ProgramOptions::RunMode::help) {
     std::cout << clipp::make_man_page(cli, "tester03") << '\n';
+    return opt;
   }
 
   if (opt.ai_id_to_test.size() > 0)
     opt.all_ai = false;
   else
     opt.all_ai = true;
+
+  if (opt.program_to_test == "") {
+    std::cout << clipp::usage_lines(cli, "tester03") << '\n'
+              << "Missing program to test.\n";
+    opt.mode = ProgramOptions::RunMode::error;
+  }
 
   return opt;
 }

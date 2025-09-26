@@ -6,9 +6,11 @@
 namespace ProgramOptions {
 
 enum class RunMode { test, help, version, error };
+enum class FileOutput { csv, report };
 
 struct Options {
   RunMode mode{RunMode::error};
+  FileOutput filemode{FileOutput::report};
   std::size_t nbrIterations{2};
   std::size_t rowSize{10};
   std::size_t colSize{10};

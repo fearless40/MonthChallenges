@@ -102,7 +102,8 @@ std::ostream &highlite(std::ostream &s) {
 }
 
 std::ostream &reset(std::ostream &s) {
-  s << "\e[0m";
+  if (use_color_v)
+    s << "\e[0m";
   return s;
 }
 
@@ -204,8 +205,10 @@ void print_all_moves(std::ostream &s, const VirtualGames::Game &game) {
     return 0;
   };
 
-  s << "ID "
-    << "Move" << '\n';
+  s << '\n'
+    << "0 = Unkown, 1 = Miss, 2 = Hit, 3 = Invalid, 4 = Sunk, 5 = Repeat"
+    << '\n';
+
   std::size_t id = 0;
   std::size_t col = 0;
   std::size_t maxcolsize = 2;
@@ -214,6 +217,7 @@ void print_all_moves(std::ostream &s, const VirtualGames::Game &game) {
   } else if (game.guesses.size() > 999) {
     maxcolsize = 4;
   }
+  // maxcolsize = 7;
 
   for (auto &move : game.guesses) {
     s << ++id;
