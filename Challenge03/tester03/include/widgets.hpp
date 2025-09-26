@@ -387,10 +387,10 @@ public:
          for(std::size_t col = 0; col < m_col_count; ++col) { 
             m_values.push_back( Renderer([cell = data[row*m_col_count + col]](bool focused) { 
                if( focused ) 
-                  return text(cell.value) | color( cell.color) | bgcolor(cell.bgColor) | bold; 
+                  return text(cell.value) | color( cell.color) | bgcolor(cell.bgColor) | bold | hcenter | vcenter; 
          
                else 
-                  return text(cell.value) | color( cell.color) | bgcolor( cell.bgColor ); 
+                  return text(cell.value) | color( cell.color) | bgcolor( cell.bgColor ) | hcenter | vcenter; 
             }));
             row_component->Add(m_values.back());
          }
@@ -433,13 +433,13 @@ public:
      
       std::vector<Elements> ele; 
       
-      const std::size_t row_elements = 2*m_row_count+1; 
-      const std::size_t col_elements = 2*m_col_count+1; 
+      const std::size_t row_elements = 2*(m_row_count+1)+1; 
+      const std::size_t col_elements = 2*(m_col_count+1)+1; 
 
       ele.reserve(row_elements); 
       
       auto lc = Color(90,90,90);
-      auto sz = size(ftxui::WIDTH, Constraint::EQUAL, 3) | size(ftxui::HEIGHT, Constraint::EQUAL, 3) | hcenter | vcenter ; 
+      auto sz = size(ftxui::WIDTH, Constraint::EQUAL, 3) | size(ftxui::HEIGHT, Constraint::EQUAL, 3); 
 
       for( std::size_t y=0 ; y < row_elements; ++y) { 
          Elements row; 
@@ -467,10 +467,25 @@ public:
                   }
                }
                if( x % 2 == 1 ) {
-                  if( x == 1 ) { 
-                     
-                  row.push_back(  m_values[x/2 + ((y/2) * m_col_count)]->Render() | sz );
+                  if( y == 1 ) {
+                     auto index = (x-1)/2 ; 
+                     switch( index) { 
+                        case 0: row.push_back(emptyElement()); break; 
+                        default: row.push_back( text( base26::to_string(index-1) ) | hcenter ); break; 
+                     }
+                  } else { 
+                   
+                     auto xindex = ((x-1)/2); 
+                     auto yindex = ((y-1)/2); 
+                     switch (xindex) { 
+                        case 0: row.push_back( text( std::to_string(yindex)) | vcenter) ; break;
+                        // default: row.push_back( text(std::format("{},{}", xindex-1, yindex-1)) | sz); break; 
+                        default: 
+                           row.push_back(  m_values[(xindex-1) + ((yindex-1) * m_col_count)]->Render() | sz );
+                           break;
+                  }
                };
+            }
             }
 }
          ele.push_back(row);
@@ -478,51 +493,7 @@ public:
 
 
       return gridbox(ele);
-      // std::vector<Elements> table; 
-      // const auto grid_size = 3;
-      //
-      // const auto cell_height = 3;
-      // const auto cell_width = 2;
-      //
-      // auto sizeit = []( Element && el ) -> auto{ 
-      //    return el   | size(WIDTH, EQUAL, grid_size + 1) | size(HEIGHT, EQUAL, grid_size) | hcenter | vcenter;
-      //  };
-      //
-      // auto lc = Color(90,90,90);
-      //
-      //    table.push_back(Elements{});
-      //    table[0].push_back(sizeit(text(" ")));
-      // for( std::size_t col = 0; col < m_col_count; ++col) { 
-      //    table[0].push_back( text("│\n│\n│") | flex_shrink | color(lc) );
-      //    table[0].push_back( sizeit(text(base26::to_string( col ))) | bold ); 
-      // }
-      //
-      // for( std::size_t row =0; row < m_row_count; ++row) { 
-      //    {
-      //       Elements divider; 
-      //       auto div = row == 0 ? "═" : "─";
-      //
-      //       for( std::size_t col = 0; col < m_col_count; ++col ) { 
-      //          if( col == 0 ) div = " "; 
-      //          else               if( col == 1 ) div = "║";
-      //          else 
-      //       div = row == 0 ? "═" : "─";
-      //          divider.push_back( text(div) | color(lc) | flex_shrink);
-      //       }
-      //       table.push_back(std::move(divider));
-      //    }
-      //    Elements row_component; 
-      //    row_component.push_back( text( std::to_string(row+1)) | bold); 
-      //    row_component.push_back( text("║") | flex_shrink | color(lc) );
-      //    for( std::size_t col = 0; col < m_col_count; ++col ) { 
-      //       row_component.push_back( sizeit(m_values[row*m_col_count+col]->Render()) );
-      //       row_component.push_back( text("│") | flex_shrink | color(lc) );
-      //    }
-      //    table.push_back(std::move( row_component )); 
-      // }
-      //
-      // return gridbox(table); 
-      //
+      
 
 
 
